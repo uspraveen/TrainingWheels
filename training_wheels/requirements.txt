@@ -1,0 +1,17 @@
+boto3
+botocore
+imagehash
+langchain
+langchain-core
+langchain-neo4j
+langchain-openai
+langchain-text-splitters
+mistralai
+numpy
+Pillow
+pydantic
+pyautogui
+PyQt6
+python-dotenv
+requests
+rich

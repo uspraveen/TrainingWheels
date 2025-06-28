@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Wheels - AI Training That Actually Works | Learnchain</title>
+    <meta name="description" content="Skip the meetings. Get instant, contextual AI guidance inside your real tools. Download the Windows demo and see Training Wheels in action.">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-red: #dc2626;
+            --flat-red: #dc2626;
+            --primary-red-hover: #b91c1c;
+            --accent-orange: #f97316;
+            --accent-blue: #3b82f6;
+            --white: #ffffff;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --gradient-primary: linear-gradient(135deg, #dc2626 0%, #f97316 100%);
+            --gradient-secondary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--white);
+            overflow-x: hidden;
+        }
+
+        /* Updated Navbar Styling */
+.navbar {
+    background-color: #fafafa;
+    border-bottom: 1px solid #e5e7eb; /* subtle divider */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 1rem 0;
+    transition: all 0.3s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.navbar.scrolled {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 3rem; /* increased from 2rem to 3rem */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Logo: make it less bold and slightly more refined */
+.logo {
+    display: flex;
+    align-items: center;
+    font-size: 1.3rem;
+    font-weight: 400; /* was 600 or 700, now lighter */
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: transform 0.2s ease;
+    letter-spacing: 0.3px;
+}
+
+
+.logo:hover {
+    transform: scale(1.03);
+}
+
+.logo::before {
+    content: "🔗";
+    margin-right: 0.4rem;
+    font-size: 1.6rem;
+    opacity: 0.7;
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+    margin-left: auto; /* pushes links far right */
+}
+
+
+.nav-links a {
+    color: #374151; /* subtle dark gray */
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+    position: relative;
+    padding-bottom: 0.2rem;
+}
+
+.nav-links a::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--flat-red); /* matches your theme */
+    transition: width 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: var(--primary-red);
+}
+
+.nav-links a:hover::after {
+    width: 100%;
+}
+
+        /* Enhanced Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--gray-50) 0%, var(--white) 50%, #fef7ff 100%);
+            padding: 8rem 2rem 6rem;
+            text-align: center;
+            margin-top: 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(220, 38, 38, 0.03) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .hero-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero h1 {
+            font-size: 3.8rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-red) 50%, var(--accent-orange) 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .hero h2 {
+            font-size: 1.6rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 4rem;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+
+        .btn-primary {
+            background: var(--flat-red);
+            color: var(--white);
+            padding: 1.2rem 2.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(220, 38, 38, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(220, 38, 38, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary-red);
+            border: 2px solid var(--primary-red);
+            padding: 1rem 2.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-secondary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: var(--flat-red);
+            transition: width 0.3s ease;
+            z-index: -1;
+        }
+
+        .btn-secondary:hover::before {
+            width: 100%;
+        }
+
+        .btn-secondary:hover {
+            color: var(--white);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.3);
+        }
+
+        /* Enhanced Hero Visual - Carousel */
+        .hero-visual {
+            max-width: 1000px;
+            margin: 0 auto;
+            animation: fadeInUp 0.8s ease-out 0.6s both;
+        }
+
+        .demo-carousel {
+            position: relative;
+            overflow: hidden;
+            border-radius: 20px;
+            background: var(--white);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--gray-200);
+            backdrop-filter: blur(20px);
+        }
+
+        .carousel-slide {
+            display: none;
+            animation: slideIn 0.8s ease-in-out;
+        }
+
+        .carousel-slide.active {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .mockup-container {
+            background: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
+            padding: 2rem;
+            position: relative;
+            min-height: 350px;
+        }
+
+        .mockup-content {
+            background: var(--gray-50);
+            border-radius: 12px;
+            padding: 2.5rem;
+            text-align: left;
+            position: relative;
+            border: 1px solid var(--gray-200);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .mockup-content h4 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .mockup-content p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+        }
+
+        .carousel-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            padding: 2rem;
+            background: var(--white);
+        }
+
+        .indicator {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--gray-300);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+            position: relative;
+        }
+
+        .indicator.active {
+            background: var(--flat-red);
+            transform: scale(1.4);
+            border-color: rgba(220, 38, 38, 0.2);
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.3);
+        }
+
+        .indicator:hover {
+            background: var(--primary-red);
+            transform: scale(1.2);
+        }
+
+        .terminal-like {
+            margin-top: 1.5rem;
+            padding: 2rem;
+            background: var(--gray-900);
+            color: #00ff88;
+            border-radius: 12px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 1rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            border: 1px solid #333;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .terminal-like::before {
+            content: '●●●';
+            position: absolute;
+            top: 0.75rem;
+            left: 1rem;
+            color: #ff5f56;
+            font-size: 1.2rem;
+            letter-spacing: 0.2rem;
+        }
+
+        /* Enhanced Overlay Demo */
+        .overlay-demo {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            background: var(--flat-red);
+            color: var(--white);
+            padding: 1.5rem;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            max-width: 320px;
+            min-height: 80px;
+            box-shadow: 0 12px 35px rgba(220, 38, 38, 0.4);
+            animation: float 4s ease-in-out infinite;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-8px) rotate(1deg); }
+            66% { transform: translateY(-4px) rotate(-1deg); }
+        }
+
+        .ai-thinking {
+            display: block;
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-bottom: 0.75rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.9; }
+            50% { opacity: 0.6; }
+        }
+
+        .typed-text {
+            display: block;
+            border-right: 2px solid white;
+            animation: blink 1s infinite;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        @keyframes blink {
+            0%, 50% { border-color: white; }
+            51%, 100% { border-color: transparent; }
+        }
+
+        /* Enhanced Key Functions Grid */
+        .what-is {
+            padding: 8rem 2rem;
+            background: var(--white);
+            position: relative;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 3rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 1rem;
+            background: var(--flat-red);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            margin-bottom: 4rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .functions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2.5rem;
+            margin-bottom: 4rem;
+        }
+
+        .function-card {
+            background: var(--white);
+            border: 2px solid var(--gray-100);
+            border-radius: 20px;
+            padding: 2.5rem;
+            text-align: left;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .function-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--flat-red);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .function-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.02) 0%, rgba(249, 115, 22, 0.02) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .function-card:hover {
+            transform: translateY(-12px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary-red);
+        }
+
+        .function-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .function-card:hover::after {
+            opacity: 1;
+        }
+
+        .function-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .function-icon {
+            font-size: 2.5rem;
+            padding: 1rem;
+            background: var(--flat-red);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(220, 38, 38, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .function-card:hover .function-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .function-card h4 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .function-description {
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+            font-size: 1.05rem;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+        }
+
+        .function-example {
+            background: linear-gradient(135deg, var(--gray-50) 0%, #fef7ff 100%);
+            padding: 1.2rem;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary-red);
+            font-style: italic;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            position: relative;
+            z-index: 2;
+            margin-top: auto;
+        }
+
+        .function-example::before {
+            content: '"';
+            font-size: 2rem;
+            color: var(--primary-red);
+            position: absolute;
+            top: -0.5rem;
+            left: 0.5rem;
+            font-family: serif;
+        }
+
+        .coming-soon {
+            background: var(--flat-red);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        /* Enhanced Enterprise Section */
+        .enterprise {
+            background: var(--flat-red);
+            color: var(--white);
+            padding: 8rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .enterprise::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: rotate 30s linear infinite reverse;
+        }
+
+        .enterprise .container {
+            position: relative;
+            z-index: 2;
+        }
+
+        .enterprise h3 {
+            font-size: 3rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .enterprise-subtitle {
+            text-align: center;
+            font-size: 1.3rem;
+            opacity: 0.9;
+            margin-bottom: 4rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2.5rem;
+        }
+
+        .benefit {
+            text-align: center;
+            padding: 2.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .benefit:hover {
+            transform: translateY(-8px);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .benefit-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            display: block;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+            transition: transform 0.3s ease;
+        }
+
+        .benefit:hover .benefit-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .benefit h4 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .benefit p {
+            opacity: 0.9;
+            line-height: 1.7;
+            font-size: 1.05rem;
+        }
+
+        /* Floating Elements */
+        .floating-element {
+            position: absolute;
+            opacity: 0.1;
+            pointer-events: none;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-element:nth-child(1) {
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .floating-element:nth-child(2) {
+            top: 20%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+
+        .floating-element:nth-child(3) {
+            bottom: 20%;
+            left: 15%;
+            animation-delay: 4s;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.8rem;
+            }
+
+            .hero h2 {
+                font-size: 1.3rem;
+            }
+
+            .functions-grid {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .function-card {
+                padding: 2rem;
+            }
+
+            .benefits-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-title {
+                font-size: 2.2rem;
+            }
+
+            .overlay-demo {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-bottom: 1rem;
+                max-width: 100%;
+            }
+        }
+
+        /* Enhanced animations and micro-interactions */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.8s ease;
+        }
+
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Performance optimizations */
+        .gpu-accelerated {
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            perspective: 1000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="https://thelearnchain.com" class="logo">Learnchain</a>
+            <ul class="nav-links">
+                <li><a href="https://thelearnchain.com/accounts/login/">Login</a></li>
+                <li><a href="https://thelearnchain.com/accounts/signup/">Register</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <h1>Learnchain Training Wheels</h1>
+            <h2><strong>Training Wheels</strong> is the <strong>real-time, on-screen AI co-pilot and Tutor</strong> designed to assist newly onboarded employees <strong>after</strong> they complete their initial training modules.</h2>
+
+            <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(249, 250, 251, 0.9) 100%); backdrop-filter: blur(20px); padding: 2.5rem; border-radius: 20px; margin: 2rem 0; text-align: left; max-width: 700px; margin-left: auto; margin-right: auto; border: 1px solid rgba(220, 38, 38, 0.1); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);">
+                <h3 style="font-size: 1.6rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; background: var(--flat-red); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">
+                    🔧 Purpose
+                </h3>
+                <p style="font-size: 1.15rem; line-height: 1.7; color: var(--text-secondary);">
+                    To <strong>bridge the gap</strong> between passive learning (training modules) and active execution (real work), especially in the <strong>first few days on the job</strong> - where most mistakes or confusion happen.
+                </p>
+            </div>
+
+            <div class="hero-buttons">
+                <a href="https://learnchain-training-wheels.s3.us-east-2.amazonaws.com/site-files/LearnchainTutor-Setup-v1.0.0.exe" class="btn-primary" onclick="showDownloadAnimation()">
+                    <span>⬇️</span>
+                    Download Beta Demo
+                </a>
+                <a href="#demo-video" class="btn-secondary">
+                    <span>▶️</span>
+                    Watch Demo (2 min)
+                </a>
+            </div>
+
+            <div class="hero-visual">
+                <div class="demo-carousel">
+                    <div class="carousel-slide active" id="slide1">
+                        <div class="mockup-container">
+                            <div class="overlay-demo typing" id="overlay1">
+                                <span class="ai-thinking">🤖 Analyzing your AWS setup...</span>
+                                <span class="typed-text" id="typed1"></span>
+                            </div>
+                            <div class="mockup-content">
+                                <h4>AWS EC2 Dashboard</h4>
+                                <p>New employee setting up their first cloud instance</p>
+                                <div class="terminal-like">Click on "Services" → "EC2" in the top navigation.
+Then select "Launch Instance" to create your development server.
+
+💡 Remember: Always use t3.micro for development to stay within free tier limits.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-slide" id="slide2">
+                        <div class="mockup-container">
+                            <div class="overlay-demo typing" id="overlay2">
+                                <span class="ai-thinking">🤖 Generating secure S3 policy...</span>
+                                <span class="typed-text" id="typed2"></span>
+                            </div>
+                            <div class="mockup-content">
+                                <h4>S3 Bucket Configuration</h4>
+                                <p>Employee needs secure storage policies for client data</p>
+                                <div class="terminal-like">Here's the policy to copy-paste for client uploads:
+
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {"AWS": "arn:aws:iam::ACCOUNT:user/client-upload"},
+    "Action": "s3:PutObject",
+    "Resource": "arn:aws:s3:::client-uploads/*",
+    "Condition": {
+      "StringEquals": {"s3:x-amz-server-side-encryption": "AES256"}
+    }
+  }]
+}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-slide" id="slide3">
+                        <div class="mockup-container">
+                            <div class="overlay-demo typing" id="overlay3">
+                                <span class="ai-thinking">🤖 Checking shipping workflow...</span>
+                                <span class="typed-text" id="typed3"></span>
+                            </div>
+                            <div class="mockup-content">
+                                <h4>Shipping Dashboard</h4>
+                                <p>Processing high-priority customer orders</p>
+                                <div class="terminal-like">⚠️ WAIT! This zip code (10001) requires USPS shipping, not FedEx.
+
+Click "Change Carrier" → Select "USPS Priority"
+→ This saves $12 and meets our SLA requirements.
+
+Next: Update tracking notification to customer.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-slide" id="slide4">
+                        <div class="mockup-container">
+                            <div class="overlay-demo typing" id="overlay4">
+                                <span class="ai-thinking">🤖 Reviewing deployment pipeline...</span>
+                                <span class="typed-text" id="typed4"></span>
+                            </div>
+                            <div class="mockup-content">
+                                <h4>GitHub CI/CD Pipeline</h4>
+                                <p>Setting up automated deployment workflow</p>
+                                <div class="terminal-like">Before you push to main, run these commands locally:
+
+$ npm run test
+$ npm run build
+
+✅ All tests passed! Now create pull request instead of direct push.
+Our policy requires code review for production deployments.
+
+Click "Create Pull Request" → Add reviewer: @senior-dev</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-slide" id="slide5">
+                        <div class="mockup-container">
+                            <div class="overlay-demo typing" id="overlay5">
+                                <span class="ai-thinking">🤖 Optimizing database query...</span>
+                                <span class="typed-text" id="typed5"></span>
+                            </div>
+                            <div class="mockup-content">
+                                <h4>Database Analytics Tool</h4>
+                                <p>Running customer analytics for quarterly report</p>
+                                <div class="terminal-like">⚠️ This query will scan 50M+ records and take 20+ minutes.
+
+Instead, use this optimized version:
+
+SELECT customer_id, SUM(order_value)
+FROM orders_summary
+WHERE quarter = 'Q1_2024'
+GROUP BY customer_id
+LIMIT 1000;
+
+Uses pre-aggregated table → Results in 3 seconds!</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-indicators">
+                        <span class="indicator active" onclick="goToSlide(0)"></span>
+                        <span class="indicator" onclick="goToSlide(1)"></span>
+                        <span class="indicator" onclick="goToSlide(2)"></span>
+                        <span class="indicator" onclick="goToSlide(3)"></span>
+                        <span class="indicator" onclick="goToSlide(4)"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Enhanced Key Functions Section -->
+    <section class="what-is scroll-reveal">
+        <div class="container">
+            <h3 class="section-title">Key Functions</h3>
+            <p class="section-subtitle">Training Wheels transforms how employees learn by doing, providing intelligent guidance exactly when and where it's needed.</p>
+
+            <div class="functions-grid">
+                <div class="function-card gpu-accelerated">
+                    <div class="function-header">
+                        <div class="function-icon">👁️</div>
+                        <h4>Live Contextual Guidance</h4>
+                    </div>
+                    <p class="function-description">
+                        AI observes your current screen, understands the context of your task, and provides intelligent step-by-step assistance-like having an expert colleague virtually shadowing you during your first weeks.
+                    </p>
+                    <div class="function-example">
+                        Like a GPS for work: "Turn left at the Services menu, then straight to EC2, you've arrived at Launch Instance."
+                    </div>
+                </div>
+
+                <div class="function-card gpu-accelerated">
+                    <div class="function-header">
+                        <div class="function-icon">🔔</div>
+                        <h4>Smart Reminders & Nudges</h4>
+                    </div>
+                    <p class="function-description">
+                        Proactive alerts prevent costly mistakes by recognizing patterns and company-specific workflows. Never accidentally use the wrong shipping method, deploy to wrong environment, or miss critical steps again.
+                    </p>
+                    <div class="function-example">
+                        "Hold up! For zip code 10001, we always use USPS Priority-it's $12 cheaper and arrives just as fast per our logistics data."
+                    </div>
+                </div>
+
+                <div class="function-card gpu-accelerated">
+                    <div class="function-header">
+                        <div class="function-icon">🎯</div>
+                        <h4>Visual UI Walkthroughs</h4>
+                    </div>
+                    <p class="function-description">
+                        Interactive overlays, highlights, and contextual popups guide you through complex interfaces. No more hunting for buttons or getting lost in multi-step workflows across different tools and dashboards.
+                    </p>
+                    <div class="function-example">
+                        Highlights the exact button to click with a gentle glow: "Click here to change shipping carrier → USPS Priority → Confirm changes."
+                    </div>
+                </div>
+
+                <div class="function-card gpu-accelerated">
+                    <div class="function-header">
+                        <div class="function-icon">⚠️</div>
+                        <h4>Intelligent Error Prevention</h4>
+                    </div>
+                    <p class="function-description">
+                        Machine learning algorithms detect potentially harmful actions before they happen. Catches everything from expensive cloud deployments to database queries that could crash systems.
+                    </p>
+                    <div class="function-example">
+                        "This database query will take 45 minutes and cost $200. Here's an optimized version that runs in 3 seconds using our cached tables."
+                    </div>
+                </div>
+
+                <div class="function-card gpu-accelerated">
+                    <div class="function-header">
+                        <div class="function-icon">🤖</div>
+                        <h4>Autonomous Learning</h4>
+                    </div>
+                    <p class="function-description">
+                        Continuously learns from experienced team members' workflows and automatically suggests optimizations. Captures institutional knowledge and makes it available to everyone, reducing the bus factor.
+                    </p>
+                    <div class="function-example">
+                        "I noticed Sarah from DevOps always runs security scans before deployments. Should I add this to your workflow checklist?"
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Enhanced Enterprise Benefits Section -->
+    <section class="enterprise scroll-reveal">
+        <div class="floating-element">💡</div>
+        <div class="floating-element">⚡</div>
+        <div class="floating-element">🚀</div>
+
+        <div class="container">
+            <h3>Perfect for Enterprise Onboarding</h3>
+            <p class="enterprise-subtitle">Transform weeks of training into hours of productive learning. Your employees start contributing from day one instead of day thirty.</p>
+
+            <div class="benefits-grid">
+                <div class="benefit gpu-accelerated">
+                    <div class="benefit-icon">⏱️</div>
+                    <h4>Reduce Training Time by 85%</h4>
+                    <p>From 3-4 weeks of meetings and documentation to 2-3 days of hands-on learning. Employees learn by actually doing their job, not by memorizing abstract concepts in conference rooms.</p>
+                </div>
+
+                <div class="benefit gpu-accelerated">
+                    <div class="benefit-icon">🎯</div>
+                    <h4>Zero-Shot Contextual Learning</h4>
+                    <p>Guidance appears exactly when and where it's needed in real workflows. No more switching between training materials and actual work-the AI understands what you're trying to accomplish.</p>
+                </div>
+
+                <div class="benefit gpu-accelerated">
+                    <div class="benefit-icon">🔄</div>
+                    <h4>Infinitely Scalable & Self-Paced</h4>
+                    <p>Onboard 1 person or 1,000 people simultaneously. No training bottlenecks, no scheduling conflicts. Every employee gets personalized, expert-level guidance at their own pace.</p>
+                </div>
+
+                <div class="benefit gpu-accelerated">
+                    <div class="benefit-icon">🛠️</div>
+                    <h4>Universal Tool Integration</h4>
+                    <p>Works seamlessly across desktop applications, web dashboards, terminals, and custom internal tools. One AI assistant for your entire tech stack-no per-tool training required.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section (keeping existing structure but with improved styling) -->
+    <section class="demo-section scroll-reveal" id="demo-section" style="background: linear-gradient(135deg, var(--gray-50) 0%, #fef7ff 100%); padding: 8rem 2rem;">
+        <div class="container">
+            <h3 class="section-title">Try Our Beta Demo</h3>
+            <div class="beta-notice" style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.05) 0%, rgba(249, 115, 22, 0.05) 100%); border: 2px solid rgba(220, 38, 38, 0.2); border-radius: 20px; padding: 2.5rem; text-align: center; margin-bottom: 3rem; position: relative; backdrop-filter: blur(10px);">
+                <span class="beta-badge" style="background: var(--flat-red); color: white; padding: 0.6rem 1.5rem; border-radius: 25px; font-weight: 700; font-size: 0.95rem; display: inline-block; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);">EXCLUSIVE BETA</span>
+                <p style="font-size: 1.2rem; line-height: 1.6;">Experience the future of AI-powered onboarding with our exclusive beta demo. Watch Training Wheels in action with real workflow scenarios that showcase contextual guidance.</p>
+            </div>
+
+            <div class="demo-intro-box" style="background: var(--white); border-radius: 20px; padding: 2.5rem; margin-bottom: 3rem; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.1); border: 1px solid var(--gray-200);">
+                <h4 style="color: var(--text-primary); margin-bottom: 1.5rem; font-size: 1.4rem; font-weight: 700;">🚀 What You'll Experience:</h4>
+                <ul style="list-style: none; margin-bottom: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                    <li style="padding: 0.75rem 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.75rem;">✨ Real-time AI guidance overlays</li>
+                    <li style="padding: 0.75rem 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.75rem;">🎯 Contextual step-by-step instructions</li>
+                    <li style="padding: 0.75rem 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.75rem;">💬 Interactive chat assistance</li>
+                    <li style="padding: 0.75rem 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.75rem;">🛠️ Actual workflow simulations</li>
+                </ul>
+                <div class="beta-requirement" style="background: linear-gradient(135deg, var(--gray-50) 0%, #fef7ff 100%); padding: 2rem; border-radius: 16px; border-left: 5px solid var(--primary-red);">
+                    <strong style="font-size: 1.1rem;">📝 Beta Access Required:</strong> <span style="font-size: 1.05rem;">You'll need a <code style="background: var(--flat-red); color: white; padding: 0.3rem 0.7rem; border-radius: 6px; font-family: monospace; font-weight: 600;">user_id</code> from our beta program. <a href="https://thelearnchain.com/accounts/signup/" style="color: var(--primary-red); font-weight: 600; text-decoration: none; border-bottom: 2px solid transparent; transition: border-color 0.2s;">Request access here →</a></span>
+                </div>
+            </div>
+
+            <p style="text-align: center; font-size: 1.05rem; color: var(--text-secondary); margin-bottom: 2rem;">
+  💡         Each Course ID below is a preset configuration. When you launch the demo app using one of these IDs, the AI connects you to that specific training instance and loads its contextual guidance automatically.
+            </p>
+
+
+            <div class="demo-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 4rem;">
+
+                <div class="demo-card" onclick="selectCourse('001')" style="background: var(--white); border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08); border: 2px solid var(--gray-100); transition: all 0.3s ease; cursor: pointer; position: relative; overflow: hidden;">
+                    <div class="course-id" style="background: var(--flat-red); color: var(--white); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; display: inline-block; margin-bottom: 1.5rem;">Course ID: 001</div>
+                    <h4 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-primary);">Shipping & Logistics Dashboard</h4>
+                    <p style="color: var(--text-secondary); line-height: 1.6; font-size: 1.05rem;">Learn to navigate supply chain tools with intelligent, context-aware guidance that prevents costly shipping mistakes.</p>
+                </div>
+
+                <div class="demo-card" onclick="selectCourse('002')" style="background: var(--white); border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08); border: 2px solid var(--gray-100); transition: all 0.3s ease; cursor: pointer; position: relative; overflow: hidden;">
+                    <div class="course-id" style="background: var(--flat-red); color: var(--white); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; display: inline-block; margin-bottom: 1.5rem;">Course ID: 002</div>
+                    <h4 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-primary);">AWS Cloud Infrastructure</h4>
+                    <p style="color: var(--text-secondary); line-height: 1.6; font-size: 1.05rem;">Deploy your first cloud instance with AI-powered guidance that ensures security best practices and cost optimization.</p>
+                </div>
+
+                <div class="demo-card" onclick="selectCourse('003')" style="background: var(--white); border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08); border: 2px solid var(--gray-100); transition: all 0.3s ease; cursor: pointer; position: relative; overflow: hidden;">
+                    <div class="course-id" style="background: var(--flat-red); color: var(--white); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; display: inline-block; margin-bottom: 1.5rem;">Course ID: 003</div>
+                    <h4 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-primary);">GitHub CI/CD Pipeline</h4>
+                    <p style="color: var(--text-secondary); line-height: 1.6; font-size: 1.05rem;">Set up automated deployments with guided assistance that enforces code review and testing protocols.</p>
+                </div>
+
+                <div class="demo-card" onclick="selectCourse('004')" style="background: var(--white); border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08); border: 2px solid var(--gray-100); transition: all 0.3s ease; cursor: pointer; position: relative; overflow: hidden;">
+                    <div class="course-id" style="background: var(--flat-red); color: var(--white); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; display: inline-block; margin-bottom: 1.5rem;">Course ID: 004</div>
+                    <h4 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-primary);">Data Analytics Platform</h4>
+                    <p style="color: var(--text-secondary); line-height: 1.6; font-size: 1.05rem;">Master internal dashboards and reporting tools with AI that optimizes queries and prevents expensive mistakes.</p>
+                </div>
+            </div>
+
+            <div class="download-section" style="text-align: center; background: var(--white); padding: 3rem; border-radius: 20px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1); border: 1px solid var(--gray-200);">
+                <a href="https://learnchain-training-wheels.s3.us-east-2.amazonaws.com/site-files/LearnchainTutor-Setup-v1.0.0.exe" class="btn-primary-large" onclick="showDownloadAnimation()" style="background: var(--flat-red); color: var(--white); padding: 1.5rem 3.5rem; border-radius: 16px; font-weight: 700; text-decoration: none; font-size: 1.3rem; display: inline-flex; align-items: center; gap: 1rem; transition: all 0.3s ease; margin-bottom: 1.5rem; box-shadow: 0 10px 30px rgba(220, 38, 38, 0.3);">
+                    <span style="font-size: 1.4rem;">⬇️</span>
+                    Download Beta Demo
+                </a>
+                <p class="download-info" style="color: var(--text-secondary); font-size: 1rem;">Windows 10/11 • 110MB • Beta Access {User_ID} Required</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta scroll-reveal" style="background: linear-gradient(135deg, var(--gray-50) 0%, var(--white) 100%); padding: 8rem 2rem; text-align: center;">
+        <div class="container">
+            <h3 style="font-size: 3rem; font-weight: 800; margin-bottom: 1rem; background: var(--flat-red); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Ready to Transform Your Onboarding?</h3>
+            <p class="cta-quote" style="font-size: 1.4rem; color: var(--text-secondary); font-style: italic; margin-bottom: 3rem; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.6;">"Onboarding shouldn't require meetings. It should be interactive, contextual, and self-paced-just like how we actually learn best."</p>
+            <div class="cta-buttons" style="display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 2rem; flex-wrap: wrap;">
+                <a href="https://learnchain-training-wheels.s3.us-east-2.amazonaws.com/site-files/LearnchainTutor-Setup-v1.0.0.exe" class="btn-primary" onclick="showDownloadAnimation()">
+                    <span>⬇️</span>
+                    Download Beta Demo
+                </a>
+                <a href="https://thelearnchain.com/accounts/signup/" class="btn-secondary">
+                    <span>📧</span>
+                    Request Beta Access
+                </a>
+            </div>
+            <p class="cta-subtext" style="color: var(--text-secondary); font-size: 1rem;">Try it Now • Needs 2-minute setup</p>
+        </div>
+    </section>
+
+    <!-- Floating CTA -->
+    <div class="floating-cta" id="floatingCta" style="position: fixed; bottom: 2rem; right: 2rem; z-index: 999; opacity: 0; transform: translateY(100px); transition: all 0.3s ease;">
+        <a href="https://learnchain-training-wheels.s3.us-east-2.amazonaws.com/site-files/LearnchainTutor-Setup-v1.0.0.exe" class="btn-floating" onclick="showDownloadAnimation()" style="background: var(--flat-red); color: var(--white); padding: 1rem 1.5rem; border-radius: 50px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 10px 30px rgba(220, 38, 38, 0.3); transition: all 0.2s;">
+            <span>⬇️</span>
+            Download Beta
+        </a>
+    </div>
+
+    <script>
+        // Enhanced JavaScript with improved animations and interactions
+
+        // Carousel functionality with enhanced typing effects
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.carousel-slide');
+        const indicators = document.querySelectorAll('.indicator');
+
+        // Enhanced typing texts for each slide
+        const typingTexts = [
+            "I see you're in the EC2 console. Click 'Services' → 'EC2' → 'Launch Instance' to get started safely.",
+            "Here's the exact S3 policy you need. Copy this snippet to ensure secure client file uploads.",
+            "Stop! This zip code requires USPS, not FedEx. I'll switch carriers to save you $12 and meet SLA.",
+            "Before pushing to main, let's run tests locally first. Then create a PR for code review as per company policy.",
+            "This query will be expensive and slow. Here's an optimized version using our pre-aggregated tables."
+        ];
+
+        function typeText(element, text, speed = 50) {
+            element.textContent = '';
+            let i = 0;
+            const timer = setInterval(() => {
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                } else {
+                    clearInterval(timer);
+                }
+            }, speed);
+        }
+
+        function goToSlide(n) {
+            currentSlide = n;
+            slides.forEach(slide => slide.classList.remove('active'));
+            indicators.forEach(indicator => indicator.classList.remove('active'));
+
+            slides[currentSlide].classList.add('active');
+            indicators[currentSlide].classList.add('active');
+
+            // Start typing animation for the active slide
+            setTimeout(() => {
+                const typedElement = document.querySelector(`#typed${currentSlide + 1}`);
+                if (typedElement) {
+                    typeText(typedElement, typingTexts[currentSlide], 30);
+                }
+            }, 500);
+        }
+
+        // Auto-advance carousel
+        setInterval(() => {
+            currentSlide = (currentSlide + 1) % slides.length;
+            goToSlide(currentSlide);
+        }, 6000);
+
+        // Initialize first slide typing
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const typedElement = document.querySelector('#typed1');
+                if (typedElement) {
+                    typeText(typedElement, typingTexts[0], 30);
+                }
+            }, 1000);
+        });
+
+        // Enhanced scroll animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                }
+            });
+        }, observerOptions);
+
+        // Observe all scroll-reveal elements
+        document.querySelectorAll('.scroll-reveal').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Enhanced navbar scroll effect
+        window.addEventListener('scroll', () => {
+            const navbar = document.getElementById('navbar');
+            const floatingCta = document.getElementById('floatingCta');
+
+            if (window.scrollY > 100) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+
+            // Show floating CTA after scrolling past hero
+            if (window.scrollY > window.innerHeight * 0.7) {
+                floatingCta.style.opacity = '1';
+                floatingCta.style.transform = 'translateY(0)';
+            } else {
+                floatingCta.style.opacity = '0';
+                floatingCta.style.transform = 'translateY(100px)';
+            }
+        });
+
+        // Enhanced course selection with better feedback
+        function selectCourse(courseId) {
+            // Remove previous selections
+            document.querySelectorAll('.demo-card').forEach(card => {
+                card.style.transform = '';
+                card.style.boxShadow = '';
+                card.style.borderColor = '';
+            });
+
+            // Highlight selected course with enhanced animation
+            const selectedCard = event.currentTarget;
+            selectedCard.style.transform = 'translateY(-8px) scale(1.02)';
+            selectedCard.style.boxShadow = '0 20px 40px rgba(220, 38, 38, 0.2)';
+            selectedCard.style.borderColor = 'var(--primary-red)';
+
+            // Enhanced feedback
+            setTimeout(() => {
+                const courseNames = {
+                    '001': 'Shipping & Logistics Dashboard',
+                    '002': 'AWS Cloud Infrastructure',
+                    '003': 'GitHub CI/CD Pipeline',
+                    '004': 'Data Analytics Platform'
+                };
+
+                alert(`✅ ${courseNames[courseId]} selected!\n\n🎯 Remember this Course ID: ${courseId}\n\n💡 You'll need it when launching Training Wheels.\n\nThis course includes:\n• Real-time contextual guidance\n• Step-by-step workflows\n• Error prevention alerts\n• Interactive chat support`);
+            }, 200);
+        }
+
+        // Enhanced download animation
+        function showDownloadAnimation() {
+            // Create and show a more sophisticated download overlay
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                backdrop-filter: blur(10px);
+            `;
+
+            const popup = document.createElement('div');
+            popup.style.cssText = `
+                background: white;
+                border-radius: 20px;
+                padding: 3rem;
+                text-align: center;
+                max-width: 400px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                animation: bounceIn 0.5s ease;
+            `;
+
+            popup.innerHTML = `
+                <div style="font-size: 4rem; margin-bottom: 1rem;">📥</div>
+                <h3 style="margin-bottom: 1rem; color: var(--text-primary);">Downloading Training Wheels</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 2rem;">Your beta demo will begin shortly...</p>
+                <div style="width: 100%; height: 8px; background: var(--gray-200); border-radius: 4px; overflow: hidden;">
+                    <div id="progress" style="height: 100%; background: var(--flat-red); width: 0%; transition: width 0.1s; border-radius: 4px;"></div>
+                </div>
+                <p id="status" style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">Preparing download...</p>
+            `;
+
+            overlay.appendChild(popup);
+            document.body.appendChild(overlay);
+
+            // Simulate download progress
+            const progress = document.getElementById('progress');
+            const status = document.getElementById('status');
+            let width = 0;
+
+            const interval = setInterval(() => {
+                width += Math.random() * 15;
+                if (width >= 100) {
+                    width = 100;
+                    progress.style.width = width + '%';
+                    status.textContent = 'Download complete! Check your Downloads folder.';
+                    setTimeout(() => {
+                        document.body.removeChild(overlay);
+                    }, 2000);
+                    clearInterval(interval);
+                } else {
+                    progress.style.width = width + '%';
+                    status.textContent = `Downloading... ${Math.round(width)}%`;
+                }
+            }, 200);
+
+            // Analytics tracking
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'download', {
+                    'file_name': 'training-wheels-beta-demo',
+                    'source': 'landing-page'
+                });
+            }
+        }
+
+        // Add CSS animation for bounceIn
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes bounceIn {
+                0% { transform: scale(0.3); opacity: 0; }
+                50% { transform: scale(1.05); }
+                70% { transform: scale(0.9); }
+                100% { transform: scale(1); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Enhanced hover effects for function cards
+        document.querySelectorAll('.function-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-12px) rotateY(5deg)';
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0) rotateY(0)';
+            });
+        });
+
+        // Add smooth scrolling for better UX
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Performance optimization: Throttle scroll events
+        let ticking = false;
+        function updateOnScroll() {
+            const navbar = document.getElementById('navbar');
+            const floatingCta = document.getElementById('floatingCta');
+
+            if (window.scrollY > 100) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+
+            if (window.scrollY > window.innerHeight * 0.7) {
+                floatingCta.style.opacity = '1';
+                floatingCta.style.transform = 'translateY(0)';
+            } else {
+                floatingCta.style.opacity = '0';
+                floatingCta.style.transform = 'translateY(100px)';
+            }
+
+            ticking = false;
+        }
+
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                requestAnimationFrame(updateOnScroll);
+                ticking = true;
+            }
+        });
+
+        // Add loading state management
+        window.addEventListener('load', () => {
+            document.body.classList.add('loaded');
+
+            // Trigger entrance animations
+            setTimeout(() => {
+                document.querySelectorAll('.hero h1, .hero h2, .hero-buttons').forEach((el, index) => {
+                    el.style.animationDelay = `${index * 0.2}s`;
+                    el.classList.add('animate-in');
+                });
+            }, 100);
+        });
+
+        // Enhanced demo card interactions
+        document.querySelectorAll('.demo-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-4px)';
+                this.style.boxShadow = '0 15px 35px rgba(0, 0, 0, 0.12)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('selected')) {
+                    this.style.transform = '';
+                    this.style.boxShadow = '';
+                }
+            });
+        });
+
+        // Add loading animations for better perceived performance
+        const addLoadingAnimation = () => {
+            const style = document.createElement('style');
+            style.textContent = `
+                .loading-shimmer {
+                    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                    background-size: 200% 100%;
+                    animation: shimmer 1.5s infinite;
+                }
+
+                @keyframes shimmer {
+                    0% { background-position: -200% 0; }
+                    100% { background-position: 200% 0; }
+                }
+
+                .loaded .loading-shimmer {
+                    animation: none;
+                    background: transparent;
+                }
+            `;
+            document.head.appendChild(style);
+        };
+
+        addLoadingAnimation();
+    </script>
+</body>
+</html>
