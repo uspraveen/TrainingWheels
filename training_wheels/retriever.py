@@ -51,7 +51,7 @@ EMBEDDING_PROPERTY = "textEmbedding"
 # Performance settings - Optimized for parallel workload
 MAX_WORKERS = 10  # Maximum number of parallel workers
 BATCH_SIZE = 10   # Batch size for LLM calls (increased for better throughput)
-CONNECTION_POOL_SIZE = 15  # Number of reusable connections (3x the typical query count)
+CONNECTION_POOL_SIZE = 10  # Number of reusable connections (3x the typical query count)
 
 # Simple in-memory cache for query results (session-based)
 _query_cache = {}
@@ -77,7 +77,7 @@ FAST_MODE = True
 
 # === CONNECTION POOL MANAGEMENT ===
 class ConnectionPool:
-    """Thread-safe connection pool for Neo4j and LLM instances"""
+    """Thread-safe connection pool for Neo4j and LLM instances with non-blocking initialization."""
     
     def __init__(self, pool_size: int = CONNECTION_POOL_SIZE):
         self.pool_size = pool_size
@@ -86,46 +86,53 @@ class ConnectionPool:
         self._embedding_instances = Queue(maxsize=pool_size)
         self._lock = threading.Lock()
         
-        # Pre-populate the pools
-        self._initialize_pools()
+        # Start non-blocking initialization
+        self._initialization_thread = threading.Thread(target=self._initialize_pools)
+        self._initialization_thread.daemon = True
+        self._initialization_thread.start()
     
     def _initialize_pools(self):
-        """Initialize connection pools"""
+        """Initialize connection pools in a background thread."""
         try:
-            # Create Neo4j connections
-            for _ in range(self.pool_size):
-                graph = Neo4jGraph(
-                    url=NEO4J_URI,
-                    username=NEO4J_USER,
-                    password=NEO4J_PASSWORD
-                )
-                # Test connection
-                graph.query("RETURN 1 as test")
+            logger.info(f"Starting background initialization of connection pool with size {self.pool_size}...")
+            # Step 1: Create and test ONE Neo4j connection to verify credentials
+            test_graph = Neo4jGraph(
+                url=NEO4J_URI,
+                username=NEO4J_USER,
+                password=NEO4J_PASSWORD
+            )
+            test_graph.query("RETURN 1 as test")
+            self._neo4j_graphs.put(test_graph)
+            
+            # Step 2: Create remaining Neo4j connections
+            for _ in range(self.pool_size - 1):
+                graph = Neo4jGraph(url=NEO4J_URI, username=NEO4J_USER, password=NEO4J_PASSWORD)
                 self._neo4j_graphs.put(graph)
             
-            # Create LLM instances
+            # Step 3: Create LLM instances
             for _ in range(self.pool_size):
                 llm = ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0)
                 self._llm_instances.put(llm)
             
-            # Create embedding instances
+            # Step 4: Create embedding instances
             for _ in range(self.pool_size):
                 embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
                 self._embedding_instances.put(embeddings)
                 
-            logger.info(f"Initialized connection pool with {self.pool_size} connections each")
+            logger.info(f"Background initialization of connection pool complete.")
             
         except Exception as e:
-            logger.error(f"Failed to initialize connection pools: {e}")
-            raise
+            logger.error(f"Failed to initialize connection pools in background: {e}")
+            # The application will continue, but may create connections on-demand.
     
     def get_neo4j_graph(self) -> Neo4jGraph:
-        """Get a Neo4j graph connection from the pool"""
+        """Get a Neo4j graph connection from the pool, waiting briefly if necessary."""
         try:
-            return self._neo4j_graphs.get_nowait()
+            # Wait up to 10 seconds for a connection from the pool
+            return self._neo4j_graphs.get(timeout=10)
         except Empty:
-            # Pool exhausted, create new connection
-            logger.warning("Neo4j pool exhausted, creating new connection")
+            # If the pool is empty after waiting, it's either exhausted or initialization failed.
+            logger.warning("Neo4j pool exhausted or initialization timed out, creating new on-demand connection.")
             return Neo4jGraph(
                 url=NEO4J_URI,
                 username=NEO4J_USER,
@@ -133,38 +140,38 @@ class ConnectionPool:
             )
     
     def return_neo4j_graph(self, graph: Neo4jGraph):
-        """Return a Neo4j graph connection to the pool"""
+        """Return a Neo4j graph connection to the pool."""
         try:
             self._neo4j_graphs.put_nowait(graph)
         except:
-            # Pool full, let it be garbage collected
+            # Pool is full, which is fine. Let the connection be garbage collected.
             pass
     
     def get_llm(self) -> ChatOpenAI:
-        """Get an LLM instance from the pool"""
+        """Get an LLM instance from the pool, waiting briefly if necessary."""
         try:
-            return self._llm_instances.get_nowait()
+            return self._llm_instances.get(timeout=10)
         except Empty:
-            logger.warning("LLM pool exhausted, creating new instance")
+            logger.warning("LLM pool exhausted or initialization timed out, creating new on-demand instance.")
             return ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0)
     
     def return_llm(self, llm: ChatOpenAI):
-        """Return an LLM instance to the pool"""
+        """Return an LLM instance to the pool."""
         try:
             self._llm_instances.put_nowait(llm)
         except:
             pass
     
     def get_embeddings(self) -> OpenAIEmbeddings:
-        """Get an embeddings instance from the pool"""
+        """Get an embeddings instance from the pool, waiting briefly if necessary."""
         try:
-            return self._embedding_instances.get_nowait()
+            return self._embedding_instances.get(timeout=10)
         except Empty:
-            logger.warning("Embeddings pool exhausted, creating new instance")
+            logger.warning("Embeddings pool exhausted or initialization timed out, creating new on-demand instance.")
             return OpenAIEmbeddings(api_key=OPENAI_API_KEY)
     
     def return_embeddings(self, embeddings: OpenAIEmbeddings):
-        """Return an embeddings instance to the pool"""
+        """Return an embeddings instance to the pool."""
         try:
             self._embedding_instances.put_nowait(embeddings)
         except:
@@ -311,8 +318,7 @@ def generate_diverse_queries(original_query: str, num_queries: int = 5) -> List[
     prompt_template = ChatPromptTemplate.from_messages([
         ("system", """
         You are a query expansion expert. Generate {num_queries} alternative queries 
-        based on the user's original query for retrieval from a knowledge base about 
-        shipping, postal services, and customer service.
+        based on the user's original query for RAG retrieval from a knowledge base.
 
         Generate queries that:
         1. The FIRST query should be the grammatically corrected version of the original query

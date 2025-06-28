@@ -1,0 +1,108 @@
+{
+  "session_id": "session_20250627_234417_3b14f318",
+  "user_id": "001",
+  "course_id": "005",
+  "goal": "Create a free aws ec2 instance",
+  "step_index": 4,
+  "steps": [
+    {
+      "step_index": 0,
+      "timestamp": "2025-06-27T23:44:18.823535",
+      "instruction": "Initializing session for goal: Create a free aws ec2 instance",
+      "format": "text",
+      "details": {},
+      "system_step": true,
+      "screenshot_path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234417_3b14f318\\screenshots\\step_0_20250627_234418.jpg",
+      "screenshot_url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234417_3b14f318/screenshots/step_0_20250627_234418.jpg"
+    },
+    {
+      "step_index": 1,
+      "timestamp": "2025-06-27T23:45:40.623961",
+      "instruction": [
+        {
+          "type": "text",
+          "content": "Open your web browser and navigate to the Amazon EC2 console."
+        },
+        {
+          "type": "link",
+          "label": "EC2 Console",
+          "content": "https://console.aws.amazon.com/ec2/"
+        }
+      ],
+      "format": "text",
+      "details": {},
+      "system_step": false,
+      "screenshot_path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234417_3b14f318\\screenshots\\step_1_20250627_234536.jpg",
+      "screenshot_url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234417_3b14f318/screenshots/step_1_20250627_234536.jpg"
+    },
+    {
+      "step_index": 2,
+      "timestamp": "2025-06-27T23:45:46.339561",
+      "instruction": [
+        {
+          "type": "text",
+          "content": "Please open your web browser and navigate to the Amazon EC2 console if you haven't done so already."
+        },
+        {
+          "type": "link",
+          "label": "EC2 Console",
+          "content": "https://console.aws.amazon.com/ec2/"
+        }
+      ],
+      "format": "text",
+      "details": {},
+      "system_step": false,
+      "screenshot_path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234417_3b14f318\\screenshots\\step_2_20250627_234542.jpg",
+      "screenshot_url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234417_3b14f318/screenshots/step_2_20250627_234542.jpg"
+    },
+    {
+      "step_index": 3,
+      "timestamp": "2025-06-27T23:45:53.176234",
+      "instruction": [
+        {
+          "type": "text",
+          "content": "Please open your web browser and navigate to the Amazon EC2 console if you haven't done so already."
+        },
+        {
+          "type": "link",
+          "label": "EC2 Console",
+          "content": "https://console.aws.amazon.com/ec2/"
+        }
+      ],
+      "format": "text",
+      "details": {},
+      "system_step": false,
+      "screenshot_path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234417_3b14f318\\screenshots\\step_3_20250627_234548.jpg",
+      "screenshot_url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234417_3b14f318/screenshots/step_3_20250627_234548.jpg"
+    }
+  ],
+  "status": "completed",
+  "start_time": "2025-06-27T23:44:17.970563",
+  "knowledge_count": 2,
+  "screenshots": [
+    {
+      "step_index": 0,
+      "path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234417_3b14f318\\screenshots\\step_0_20250627_234418.jpg",
+      "url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234417_3b14f318/screenshots/step_0_20250627_234418.jpg"
+    },
+    {
+      "step_index": 1,
+      "path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234417_3b14f318\\screenshots\\step_1_20250627_234536.jpg",
+      "url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234417_3b14f318/screenshots/step_1_20250627_234536.jpg"
+    },
+    {
+      "step_index": 2,
+      "path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234417_3b14f318\\screenshots\\step_2_20250627_234542.jpg",
+      "url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234417_3b14f318/screenshots/step_2_20250627_234542.jpg"
+    },
+    {
+      "step_index": 3,
+      "path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234417_3b14f318\\screenshots\\step_3_20250627_234548.jpg",
+      "url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234417_3b14f318/screenshots/step_3_20250627_234548.jpg"
+    }
+  ],
+  "include_explanations": false,
+  "audio_enabled": false,
+  "chat_history_count": 0,
+  "end_time": "2025-06-28T00:02:27.329722"
+}

@@ -1,0 +1,32 @@
+{
+  "session_id": "session_20250627_234240_fabc3b91",
+  "user_id": "001",
+  "course_id": "005",
+  "goal": "Create a free aws ec2 instance in aws",
+  "step_index": 1,
+  "steps": [
+    {
+      "step_index": 0,
+      "timestamp": "2025-06-27T23:42:41.469348",
+      "instruction": "Initializing session for goal: Create a free aws ec2 instance in aws",
+      "format": "text",
+      "details": {},
+      "system_step": true,
+      "screenshot_path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234240_fabc3b91\\screenshots\\step_0_20250627_234240.jpg",
+      "screenshot_url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234240_fabc3b91/screenshots/step_0_20250627_234240.jpg"
+    }
+  ],
+  "status": "initializing",
+  "start_time": "2025-06-27T23:42:40.708255",
+  "knowledge_count": 0,
+  "screenshots": [
+    {
+      "step_index": 0,
+      "path": "c:\\Users\\Praveen Raj U S\\TrainingWheels\\training_wheels\\training_data\\session_20250627_234240_fabc3b91\\screenshots\\step_0_20250627_234240.jpg",
+      "url": "https://learnchain-training-wheels.s3.amazonaws.com/sessions/session_20250627_234240_fabc3b91/screenshots/step_0_20250627_234240.jpg"
+    }
+  ],
+  "include_explanations": false,
+  "audio_enabled": false,
+  "chat_history_count": 0
+}

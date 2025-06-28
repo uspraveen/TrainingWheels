@@ -674,51 +674,138 @@ class RegionSelectionScreen(QWidget):
             QMessageBox.critical(self, "S3 Connection Test", f"S3 connection failed: {error}")
 
 
+# BEST FIX: In ui_integration.py - Use the existing get_retriever_answer function
+
 def fetch_knowledge_from_retriever(goal: str, course_id: str) -> List[Dict[str, Any]]:
-    """Fetch knowledge from the retriever for the goal using diverse queries"""
+    """Fetch knowledge using the proper get_retriever_answer function"""
     try:
-        from retriever import query_course_knowledge, generate_diverse_queries
-
+        # Import the function that ALREADY handles course ID formatting correctly!
+        from retriever import get_retriever_answer
+        
+        logger.info(f"🔧 BEST FIX: Using get_retriever_answer for goal: '{goal}' (course: {course_id})")
+        
+        # This function already:
+        # 1. Adds "Course_" prefix correctly  
+        # 2. Uses multi-query parallel processing
+        # 3. Has all the optimizations
+        result = get_retriever_answer(
+            question=goal,
+            course_id=course_id,  # Just pass "001" - function will format it correctly
+            use_query_enhancement=True,
+            use_enhanced_retrieval=True,
+            use_multi_query=True,  # Enable parallel multi-query processing
+            num_queries=10  # Use 10 diverse queries
+        )
+        
+        # Extract knowledge from results (same format as multi_query_retrieval_with_individual_answers)
         all_knowledge = []
-
-        # Generate 10 diverse queries using the LLM
-        queries = generate_diverse_queries(goal, num_queries=10)
-        logger.info(f"Generated {len(queries)} diverse queries for goal: '{goal}'")
-
-        # Log the generated queries for debugging
-        for i, q in enumerate(queries):
-            logger.info(f"Generated query {i + 1}: {q}")
-
-        # Use the working query_course_knowledge function for each query
-        for i, query in enumerate(queries):
-            logger.info(f"Executing query {i + 1}/{len(queries)}: '{query}'")
-
-            result = query_course_knowledge(
-                course_id=course_id,
-                question=query,
-                use_query_enhancement=True,
-                use_enhanced_retrieval=True,
-                k=5
-            )
-
-            if result.get("answer") and "I don't have enough information" not in result.get("answer", ""):
+        
+        # Add the main consolidated answer
+        if result.get("answer") and "I don't have enough information" not in result.get("answer", ""):
+            primary_knowledge = {
+                "query": goal,
+                "content": result["answer"],
+                "type": "consolidated_answer", 
+                "course_id": course_id,
+                "sources": result.get("source_documents", []),
+                "priority": 1
+            }
+            all_knowledge.append(primary_knowledge)
+        
+        # Add individual query results if available
+        individual_results = result.get("individual_results", [])
+        for individual in individual_results:
+            if individual.get("has_info", False) and individual.get("answer"):
                 knowledge_item = {
-                    "query": query,
-                    "content": result["answer"],
-                    "type": "answer",
+                    "query": individual["query"],
+                    "content": individual["answer"], 
+                    "type": "individual_answer",
                     "course_id": course_id,
-                    "sources": result.get("source_documents", [])
+                    "sources": individual.get("sources", []),
+                    "priority": 2
                 }
                 all_knowledge.append(knowledge_item)
-                logger.info(f"Added knowledge item for query: '{query[:50]}...'")
-
-        logger.info(f"Retrieved {len(all_knowledge)} knowledge items from {len(queries)} queries")
+        
+        # Log performance metrics
+        metrics = result.get("performance_metrics", {})
+        if metrics:
+            total_time = metrics.get("total_time", 0)
+            num_queries = metrics.get("num_queries", 0) 
+            valid_results = metrics.get("num_valid_results", 0)
+            course_id_used = metrics.get("course_id_used", "unknown")
+            
+            logger.info(f"🚀 PARALLEL retrieval via get_retriever_answer completed in {total_time:.2f}s!")
+            logger.info(f"   → Processed {num_queries} queries simultaneously")
+            logger.info(f"   → Got {valid_results} valid results")
+            logger.info(f"   → Course ID used: {course_id_used}")
+        
+        logger.info(f"Retrieved {len(all_knowledge)} knowledge items using get_retriever_answer")
         return all_knowledge
-
+        
+    except ImportError as e:
+        logger.error(f"Could not import get_retriever_answer: {e}")
+        # Fallback to manual course ID formatting
+        return fetch_knowledge_with_manual_formatting(goal, course_id)
     except Exception as e:
-        logger.error(f"Error fetching knowledge: {e}")
+        logger.error(f"Error in get_retriever_answer: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
+        return []
+
+
+def fetch_knowledge_with_manual_formatting(goal: str, course_id: str) -> List[Dict[str, Any]]:
+    """Fallback with manual course ID formatting"""
+    try:
+        from retriever import multi_query_retrieval_with_individual_answers
+        
+        # Manual formatting as fallback
+        if course_id and not course_id.startswith("Course_"):
+            formatted_course_id = "Course_" + course_id
+        else:
+            formatted_course_id = course_id
+            
+        logger.info(f"🔧 FALLBACK: Manual formatting {course_id} → {formatted_course_id}")
+        
+        result = multi_query_retrieval_with_individual_answers(
+            course_id=formatted_course_id,
+            original_question=goal,
+            num_queries=10,
+            results_per_query=3,
+            use_enhanced_retrieval=True,
+            debug_mode=False
+        )
+        
+        # Process results same as above...
+        all_knowledge = []
+        
+        if result.get("answer") and "I don't have enough information" not in result.get("answer", ""):
+            primary_knowledge = {
+                "query": goal,
+                "content": result["answer"],
+                "type": "consolidated_answer", 
+                "course_id": course_id,
+                "sources": result.get("source_documents", []),
+                "priority": 1
+            }
+            all_knowledge.append(primary_knowledge)
+        
+        individual_results = result.get("individual_results", [])
+        for individual in individual_results:
+            if individual.get("has_info", False) and individual.get("answer"):
+                knowledge_item = {
+                    "query": individual["query"],
+                    "content": individual["answer"], 
+                    "type": "individual_answer",
+                    "course_id": course_id,
+                    "sources": individual.get("sources", []),
+                    "priority": 2
+                }
+                all_knowledge.append(knowledge_item)
+        
+        return all_knowledge
+        
+    except Exception as e:
+        logger.error(f"Error in fallback formatting: {e}")
         return []
 
 
