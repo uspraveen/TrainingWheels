@@ -30,3 +30,4 @@ __pycache__
 *.swp
 
 training_wheels/.env
+training_wheels/training_data/

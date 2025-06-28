@@ -1,4 +1,4 @@
-# retriever.py - Optimized with parallel processing
+# retriever.py - BLAZING FAST optimized with minimal connection testing
 
 import os
 import logging
@@ -35,12 +35,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # === CONFIG ===
-# Hardcoded credentials for development (not recommended for production)
 NEO4J_URI = os.getenv("NEO4J_URI")
 NEO4J_USER = os.getenv("NEO4J_USER")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 
 # Advanced retrieval settings
 DEFAULT_NUM_RESULTS = 20
@@ -48,16 +46,22 @@ MAX_QUERY_TOKENS = 15000
 VECTOR_INDEX_NAME = "chunkVector"
 EMBEDDING_PROPERTY = "textEmbedding"
 
-# Performance settings - Optimized for parallel workload
-MAX_WORKERS = 10  # Maximum number of parallel workers
-BATCH_SIZE = 10   # Batch size for LLM calls (increased for better throughput)
-CONNECTION_POOL_SIZE = 10  # Number of reusable connections (3x the typical query count)
+# OPTIMIZED Performance settings - Balanced for reliability and speed
+MAX_WORKERS = 6  # Reduced from 8 for more stability
+BATCH_SIZE = 6   # Matched to MAX_WORKERS for optimal batching  
+CONNECTION_POOL_SIZE = 4  # Reduced from 6 - smaller pool, faster & more reliable initialization
 
-# Simple in-memory cache for query results (session-based)
+# Simple in-memory cache for query results
 _query_cache = {}
 CACHE_ENABLED = True
 
-# Store credentials in environment for libraries that use them
+def clear_query_cache():
+    """Clear the query cache - useful for development"""
+    global _query_cache
+    _query_cache.clear()
+    logger.info("Query cache cleared")
+
+# Store credentials in environment
 os.environ["NEO4J_URI"] = NEO4J_URI
 os.environ["NEO4J_USER"] = NEO4J_USER
 os.environ["NEO4J_PASSWORD"] = NEO4J_PASSWORD
@@ -75,9 +79,9 @@ CHAR_DELAY = 0.00
 WORD_DELAY = 0.00
 FAST_MODE = True
 
-# === CONNECTION POOL MANAGEMENT ===
-class ConnectionPool:
-    """Thread-safe connection pool for Neo4j and LLM instances with non-blocking initialization."""
+# === BLAZING FAST CONNECTION POOL ===
+class OptimizedConnectionPool:
+    """OPTIMIZED: Ultra-fast connection pool with minimal testing and parallel initialization."""
     
     def __init__(self, pool_size: int = CONNECTION_POOL_SIZE):
         self.pool_size = pool_size
@@ -85,54 +89,111 @@ class ConnectionPool:
         self._llm_instances = Queue(maxsize=pool_size)
         self._embedding_instances = Queue(maxsize=pool_size)
         self._lock = threading.Lock()
+        self._initialized = False
         
-        # Start non-blocking initialization
-        self._initialization_thread = threading.Thread(target=self._initialize_pools)
+        # Start BLAZING FAST initialization
+        self._initialization_thread = threading.Thread(target=self._fast_initialize_pools)
         self._initialization_thread.daemon = True
         self._initialization_thread.start()
     
-    def _initialize_pools(self):
-        """Initialize connection pools in a background thread."""
+    def _fast_initialize_pools(self):
+        """BLAZING FAST: Initialize pools with minimal testing and parallel creation."""
         try:
-            logger.info(f"Starting background initialization of connection pool with size {self.pool_size}...")
-            # Step 1: Create and test ONE Neo4j connection to verify credentials
+            start_time = time.time()
+            logger.info(f"🚀 BLAZING FAST pool initialization starting (size {self.pool_size})...")
+            
+            # OPTIMIZATION: Use ThreadPoolExecutor for parallel initialization
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                # Submit all initialization tasks in parallel
+                neo4j_future = executor.submit(self._init_neo4j_pool)
+                llm_future = executor.submit(self._init_llm_pool)
+                embedding_future = executor.submit(self._init_embedding_pool)
+                
+                # Wait for all to complete with individual error handling
+                neo4j_success = True
+                llm_success = True
+                embedding_success = True
+                
+                try:
+                    neo4j_success = neo4j_future.result(timeout=12)  # Increased timeout
+                except Exception as e:
+                    logger.warning(f"Neo4j pool init failed: {e}")
+                    neo4j_success = False
+                
+                try:
+                    llm_success = llm_future.result(timeout=10)  # Increased timeout
+                except Exception as e:
+                    logger.warning(f"LLM pool init failed: {e}")
+                    llm_success = False
+                
+                try:
+                    embedding_success = embedding_future.result(timeout=10)  # Increased timeout
+                except Exception as e:
+                    logger.warning(f"Embedding pool init failed: {e}")
+                    embedding_success = False
+                
+                if neo4j_success and llm_success and embedding_success:
+                    self._initialized = True
+                    init_time = time.time() - start_time
+                    logger.info(f"⚡ BLAZING FAST pool initialization complete in {init_time:.2f}s!")
+                else:
+                    logger.warning(f"Partial pool initialization - fallbacks will be used")
+                    
+        except Exception as e:
+            logger.warning(f"Pool initialization failed, using fallbacks: {e}")
+    
+    def _init_neo4j_pool(self) -> bool:
+        """Initialize Neo4j pool with SINGLE connection test"""
+        try:
+            # OPTIMIZATION: Test only ONE connection, then create the rest
             test_graph = Neo4jGraph(
                 url=NEO4J_URI,
                 username=NEO4J_USER,
                 password=NEO4J_PASSWORD
             )
-            test_graph.query("RETURN 1 as test")
+            test_graph.query("RETURN 1 as test")  # Single test query
             self._neo4j_graphs.put(test_graph)
             
-            # Step 2: Create remaining Neo4j connections
+            # Create remaining connections WITHOUT testing each one
             for _ in range(self.pool_size - 1):
                 graph = Neo4jGraph(url=NEO4J_URI, username=NEO4J_USER, password=NEO4J_PASSWORD)
                 self._neo4j_graphs.put(graph)
             
-            # Step 3: Create LLM instances
+            return True
+        except Exception as e:
+            logger.error(f"Neo4j pool initialization failed: {e}")
+            return False
+    
+    def _init_llm_pool(self) -> bool:
+        """Initialize LLM pool - all instances are identical, no testing needed"""
+        try:
+            # OPTIMIZATION: LLM instances don't need testing, create all at once
             for _ in range(self.pool_size):
                 llm = ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0)
                 self._llm_instances.put(llm)
-            
-            # Step 4: Create embedding instances
+            return True
+        except Exception as e:
+            logger.error(f"LLM pool initialization failed: {e}")
+            return False
+    
+    def _init_embedding_pool(self) -> bool:
+        """Initialize embedding pool - all instances are identical, no testing needed"""
+        try:
+            # OPTIMIZATION: Embedding instances don't need testing, create all at once
             for _ in range(self.pool_size):
                 embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
                 self._embedding_instances.put(embeddings)
-                
-            logger.info(f"Background initialization of connection pool complete.")
-            
+            return True
         except Exception as e:
-            logger.error(f"Failed to initialize connection pools in background: {e}")
-            # The application will continue, but may create connections on-demand.
+            logger.error(f"Embedding pool initialization failed: {e}")
+            return False
     
     def get_neo4j_graph(self) -> Neo4jGraph:
-        """Get a Neo4j graph connection from the pool, waiting briefly if necessary."""
+        """Get Neo4j connection - FAST with shorter timeout"""
         try:
-            # Wait up to 10 seconds for a connection from the pool
-            return self._neo4j_graphs.get(timeout=10)
+            return self._neo4j_graphs.get(timeout=5)  # Reduced from 10 seconds
         except Empty:
-            # If the pool is empty after waiting, it's either exhausted or initialization failed.
-            logger.warning("Neo4j pool exhausted or initialization timed out, creating new on-demand connection.")
+            logger.warning("Neo4j pool empty, creating on-demand connection")
             return Neo4jGraph(
                 url=NEO4J_URI,
                 username=NEO4J_USER,
@@ -140,75 +201,133 @@ class ConnectionPool:
             )
     
     def return_neo4j_graph(self, graph: Neo4jGraph):
-        """Return a Neo4j graph connection to the pool."""
+        """Return Neo4j connection to pool"""
         try:
             self._neo4j_graphs.put_nowait(graph)
         except:
-            # Pool is full, which is fine. Let the connection be garbage collected.
-            pass
+            pass  # Pool full, let it be garbage collected
     
     def get_llm(self) -> ChatOpenAI:
-        """Get an LLM instance from the pool, waiting briefly if necessary."""
+        """Get LLM instance - FAST with shorter timeout"""
         try:
-            return self._llm_instances.get(timeout=10)
+            return self._llm_instances.get(timeout=5)  # Reduced from 10 seconds
         except Empty:
-            logger.warning("LLM pool exhausted or initialization timed out, creating new on-demand instance.")
+            logger.warning("LLM pool empty, creating on-demand instance")
             return ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0)
     
     def return_llm(self, llm: ChatOpenAI):
-        """Return an LLM instance to the pool."""
+        """Return LLM instance to pool"""
         try:
             self._llm_instances.put_nowait(llm)
         except:
             pass
     
     def get_embeddings(self) -> OpenAIEmbeddings:
-        """Get an embeddings instance from the pool, waiting briefly if necessary."""
+        """Get embeddings instance - FAST with shorter timeout"""
         try:
-            return self._embedding_instances.get(timeout=10)
+            return self._embedding_instances.get(timeout=5)  # Reduced from 10 seconds
         except Empty:
-            logger.warning("Embeddings pool exhausted or initialization timed out, creating new on-demand instance.")
+            logger.warning("Embeddings pool empty, creating on-demand instance")
             return OpenAIEmbeddings(api_key=OPENAI_API_KEY)
     
     def return_embeddings(self, embeddings: OpenAIEmbeddings):
-        """Return an embeddings instance to the pool."""
+        """Return embeddings instance to pool"""
         try:
             self._embedding_instances.put_nowait(embeddings)
         except:
             pass
 
-# Global connection pool
+# Global connection pool - OPTIMIZED
 _connection_pool = None
+_pool_initialization_started = False
 
-def get_connection_pool() -> ConnectionPool:
-    """Get the global connection pool instance"""
+def get_connection_pool() -> OptimizedConnectionPool:
+    """Get the global OPTIMIZED connection pool instance"""
     global _connection_pool
     if _connection_pool is None:
-        _connection_pool = ConnectionPool()
+        _connection_pool = OptimizedConnectionPool()
     return _connection_pool
 
-# === INITIALIZE COMPONENTS ===
+def start_early_pool_initialization():
+    """Start pool initialization early (non-blocking) - SAFE to call multiple times"""
+    global _connection_pool, _pool_initialization_started
+    
+    try:
+        if not _pool_initialization_started:
+            _pool_initialization_started = True
+            logger.info("🚀 Starting EARLY pool initialization (user-triggered)")
+            
+            # Create pool if doesn't exist
+            if _connection_pool is None:
+                _connection_pool = OptimizedConnectionPool()
+            
+            # If pool thread died or never started, restart it
+            if not hasattr(_connection_pool, '_initialization_thread') or \
+               not _connection_pool._initialization_thread.is_alive():
+                _connection_pool._initialization_thread = threading.Thread(
+                    target=_connection_pool._fast_initialize_pools
+                )
+                _connection_pool._initialization_thread.daemon = True
+                _connection_pool._initialization_thread.start()
+                
+            logger.info("✅ Early pool initialization started in background")
+        else:
+            logger.info("ℹ️  Pool initialization already started")
+            
+    except Exception as e:
+        logger.warning(f"Early pool initialization failed, will use normal fallback: {e}")
+
+def is_pool_ready() -> bool:
+    """Check if pool is ready (non-blocking)"""
+    global _connection_pool
+    if _connection_pool is None:
+        return False
+    return getattr(_connection_pool, '_initialized', False)
+
+def get_pool_status() -> Dict[str, Any]:
+    """Get detailed pool status for debugging"""
+    global _connection_pool, _pool_initialization_started
+    
+    if _connection_pool is None:
+        return {"status": "not_created", "ready": False}
+    
+    return {
+        "status": "ready" if _connection_pool._initialized else "initializing",
+        "ready": _connection_pool._initialized,
+        "started": _pool_initialization_started,
+        "thread_alive": hasattr(_connection_pool, '_initialization_thread') and 
+                       _connection_pool._initialization_thread.is_alive()
+    }
+
+# === OPTIMIZED INITIALIZATION ===
 try:
-    # Initialize with connection pool
+    # Initialize with OPTIMIZED connection pool
     pool = get_connection_pool()
     
-    # Get one instance of each for compatibility with existing code
-    llm = pool.get_llm()
-    embedding_provider = pool.get_embeddings()
-    graph = pool.get_neo4j_graph()
+    # Get one instance of each for compatibility - NON-BLOCKING
+    llm = ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0)
+    embedding_provider = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+    graph = Neo4jGraph(
+        url=NEO4J_URI,
+        username=NEO4J_USER,
+        password=NEO4J_PASSWORD
+    )
     
-    # Test connection
-    graph.query("RETURN 1 as test")
-    logger.info("Successfully connected to Neo4j with connection pool")
+    # OPTIMIZATION: Single quick test, don't block on it
+    try:
+        graph.query("RETURN 1 as test")
+        logger.info("✅ Neo4j connection successful")
+    except Exception as e:
+        logger.warning(f"⚠️  Neo4j test failed, but continuing: {e}")
 
 except Exception as e:
-    logger.error(f"Failed to initialize components: {e}")
+    logger.error(f"Component initialization failed: {e}")
     raise
 
-# === PARALLEL PROCESSING UTILITIES ===
+# === OPTIMIZED PARALLEL PROCESSING ===
 
-def batch_llm_calls(prompts: List[str], batch_size: int = BATCH_SIZE) -> List[str]:
-    """Execute multiple LLM calls in parallel batches with optimized processing"""
+def optimized_batch_llm_calls(prompts: List[str], batch_size: int = BATCH_SIZE) -> List[str]:
+    """OPTIMIZED: Execute LLM calls with better resource management and faster processing"""
     results = [""] * len(prompts)
     pool = get_connection_pool()
     
@@ -224,33 +343,32 @@ def batch_llm_calls(prompts: List[str], batch_size: int = BATCH_SIZE) -> List[st
         finally:
             pool.return_llm(llm_instance)
     
-    # Process all prompts in parallel (not in sequential batches)
-    max_workers = min(MAX_WORKERS, len(prompts), CONNECTION_POOL_SIZE)
+    # OPTIMIZATION: More aggressive parallelization for faster answer generation
+    max_workers = min(MAX_WORKERS, len(prompts), 8)  # Allow up to 8 parallel LLM calls
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all tasks at once for maximum parallelism
         futures = [
             executor.submit(process_prompt, (i, prompt)) 
             for i, prompt in enumerate(prompts)
         ]
         
-        # Collect results as they complete
-        for future in as_completed(futures):
+        # OPTIMIZATION: Shorter timeout for faster failure handling
+        for future in as_completed(futures, timeout=20):  # Reduced from 30
             try:
-                idx, result = future.result(timeout=20)  # Reduced timeout
+                idx, result = future.result(timeout=10)  # Reduced from 15
                 results[idx] = result
             except Exception as e:
                 logger.error(f"Error in batch LLM processing: {e}")
     
     return results
 
-def parallel_neo4j_retrieval(queries: List[str], course_id: str, 
+def optimized_parallel_neo4j_retrieval(queries: List[str], course_id: str, 
                            results_per_query: int = 3,
                            use_enhanced_retrieval: bool = True) -> List[List[Document]]:
-    """Execute multiple Neo4j retrievals in parallel with optimized batching"""
+    """OPTIMIZED: Execute Neo4j retrievals with better performance"""
     results = [[] for _ in range(len(queries))]
     pool = get_connection_pool()
     
-    # Pre-classify all queries to avoid doing it in parallel threads
+    # OPTIMIZATION: Pre-classify all queries to avoid doing it in threads
     query_types = [classify_query_type(query) for query in queries]
     
     def retrieve_for_query(idx_query_pair):
@@ -280,9 +398,9 @@ def parallel_neo4j_retrieval(queries: List[str], course_id: str,
                 node_label="Chunk"
             )
             
-            # Retrieve documents
+            # Retrieve documents - FIXED: Use invoke() instead of deprecated method
             chunk_retriever = chunk_vector.as_retriever(search_kwargs={"k": results_per_query})
-            docs = chunk_retriever.get_relevant_documents(query)
+            docs = chunk_retriever.invoke(query)
             
             return idx, docs
             
@@ -293,7 +411,7 @@ def parallel_neo4j_retrieval(queries: List[str], course_id: str,
             pool.return_neo4j_graph(graph_instance)
             pool.return_embeddings(embeddings_instance)
     
-    # Execute retrievals in parallel with optimized worker count
+    # OPTIMIZATION: Use optimal worker count
     max_workers = min(MAX_WORKERS, len(queries), CONNECTION_POOL_SIZE)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [
@@ -301,10 +419,10 @@ def parallel_neo4j_retrieval(queries: List[str], course_id: str,
             for i, query in enumerate(queries)
         ]
         
-        # Process results as they complete (faster than waiting for all)
-        for future in as_completed(futures):
+        # OPTIMIZATION: Shorter timeout for faster processing
+        for future in as_completed(futures, timeout=25):  # Reduced from no timeout
             try:
-                idx, docs = future.result(timeout=20)  # Reduced timeout
+                idx, docs = future.result(timeout=15)  # Reduced from 20
                 results[idx] = docs
             except Exception as e:
                 logger.error(f"Error in parallel retrieval: {e}")
@@ -314,32 +432,36 @@ def parallel_neo4j_retrieval(queries: List[str], course_id: str,
 # === OPTIMIZED CORE FUNCTIONS ===
 
 def generate_diverse_queries(original_query: str, num_queries: int = 5) -> List[str]:
-    """Generate diverse queries with improved prompt"""
+    """OPTIMIZED: Generate diverse queries with improved prompt and faster processing + caching"""
+    
+    # OPTIMIZATION: Simple caching for repeated queries
+    cache_key = f"{original_query}_{num_queries}"
+    if CACHE_ENABLED and cache_key in _query_cache:
+        logger.info(f"Using cached diverse queries for: '{original_query}'")
+        return _query_cache[cache_key]
+    
     prompt_template = ChatPromptTemplate.from_messages([
         ("system", """
-        You are a query expansion expert. Generate {num_queries} alternative queries 
-        based on the user's original query for RAG retrieval from a knowledge base.
+        Generate {num_queries} alternative queries for RAG retrieval. Be concise and focused.
 
-        Generate queries that:
-        1. The FIRST query should be the grammatically corrected version of the original query
-        2. Subsequent queries should explore different aspects, entities, or perspectives
-        3. Include queries with synonyms, different phrasings, or sub-aspects
-        4. Include at least one query that generalizes to broader concepts
-        5. Include at least one query about limitations, restrictions, or exceptions
+        Rules:
+        1. First query: grammatically corrected version of original
+        2. Subsequent: different aspects, synonyms, sub-topics
+        3. Include one broader generalization
+        4. Include one about limitations/restrictions
 
         Return ONLY a JSON array of query strings.
 
         Example:
-        Original: "can i send 80lb pack with usps"
-        Output: [
+        "can i send 80lb pack with usps" → [
             "Can I send an 80 lb package with USPS?",
             "What is the maximum weight limit for USPS packages?",
-            "Are there any restrictions for shipping heavy packages through USPS?",
-            "How does USPS handle packages that weigh 80 pounds?",
-            "What shipping options are available for heavy packages with USPS?"
+            "Are there restrictions for heavy packages with USPS?",
+            "How does USPS handle 80-pound packages?",
+            "What shipping options exist for heavy USPS packages?"
         ]
         """),
-        ("human", f"Original query: {original_query}")
+        ("human", f"Original: {original_query}")
     ])
 
     try:
@@ -356,6 +478,10 @@ def generate_diverse_queries(original_query: str, num_queries: int = 5) -> List[
             elif len(queries) > num_queries:
                 queries = queries[:num_queries]
 
+            # Cache the result
+            if CACHE_ENABLED:
+                _query_cache[cache_key] = queries
+
             logger.info(f"Generated {len(queries)} diverse queries for: '{original_query}'")
             return queries
             
@@ -364,10 +490,14 @@ def generate_diverse_queries(original_query: str, num_queries: int = 5) -> List[
             
     except Exception as e:
         logger.error(f"Error generating diverse queries: {e}")
-        return [original_query] + [f"{original_query} {i}" for i in range(num_queries - 1)]
+        # Fallback with simpler variations
+        fallback_queries = [original_query]
+        for i in range(num_queries - 1):
+            fallback_queries.append(f"How to {original_query.lower()}")
+        return fallback_queries
 
 def enhance_query_with_llm(original_query: str, course_id: str) -> str:
-    """Enhanced query improvement with connection pooling"""
+    """OPTIMIZED: Enhanced query improvement with connection pooling"""
     prompt = ChatPromptTemplate.from_messages([
         ("system", """
         You are a query enhancement system for an e-learning knowledge graph system backed by Neo4J + vector search. 
@@ -403,7 +533,7 @@ def enhance_query_with_llm(original_query: str, course_id: str) -> str:
         logger.error(f"Error enhancing query: {e}")
         return original_query
 
-def multi_query_retrieval_with_individual_answers(
+def optimized_multi_query_retrieval_with_individual_answers(
         course_id: str,
         original_question: str,
         num_queries: int = 10,
@@ -412,21 +542,27 @@ def multi_query_retrieval_with_individual_answers(
         debug_mode: bool = False
 ) -> Dict[str, Any]:
     """
-    Ultra-fast multi-query retrieval with parallel processing
+    BLAZING FAST: Ultra-optimized multi-query retrieval with adaptive performance
     """
     try:
         start_time = time.time()
+        
+        # OPTIMIZATION: Adaptive query count based on system performance
+        pool = get_connection_pool()
+        if not pool._initialized:
+            logger.info("Pool not fully initialized, reducing query count for faster processing")
+            num_queries = min(num_queries, 6)  # Reduce load when pool isn't ready
         
         # Step 1: Generate diverse queries (single LLM call)
         diverse_queries = generate_diverse_queries(original_question, num_queries)
         query_gen_time = time.time() - start_time
         logger.info(f"Generated {len(diverse_queries)} queries in {query_gen_time:.2f}s")
         
-        # Step 2: Parallel Neo4j retrieval for all queries
+        # Step 2: OPTIMIZED parallel Neo4j retrieval for all queries
         retrieval_start = time.time()
         max_parallel_workers = min(MAX_WORKERS, len(diverse_queries), CONNECTION_POOL_SIZE)
         logger.info(f"Starting parallel retrieval with {max_parallel_workers} workers and {CONNECTION_POOL_SIZE} connections")
-        all_docs_lists = parallel_neo4j_retrieval(
+        all_docs_lists = optimized_parallel_neo4j_retrieval(
             diverse_queries, course_id, results_per_query, use_enhanced_retrieval
         )
         retrieval_time = time.time() - retrieval_start
@@ -463,11 +599,13 @@ def multi_query_retrieval_with_individual_answers(
             else:
                 logger.info(f"No documents retrieved for query: '{query}'")
         
-        # Step 4: Parallel answer generation
+        # Step 4: OPTIMIZED parallel answer generation
         answer_start = time.time()
         if prompts:
-            logger.info(f"Starting parallel LLM processing for {len(prompts)} prompts with {min(MAX_WORKERS, len(prompts), CONNECTION_POOL_SIZE)} workers")
-            batch_responses = batch_llm_calls(prompts, batch_size=BATCH_SIZE)
+            # OPTIMIZATION: Reduce worker count if we have few prompts
+            worker_count = min(len(prompts), MAX_WORKERS, 8)
+            logger.info(f"Starting parallel LLM processing for {len(prompts)} prompts with {worker_count} workers")
+            batch_responses = optimized_batch_llm_calls(prompts, batch_size=BATCH_SIZE)
         else:
             batch_responses = []
         answer_time = time.time() - answer_start
@@ -499,7 +637,7 @@ def multi_query_retrieval_with_individual_answers(
                 "has_info": has_info
             })
         
-        # Step 6: Generate consolidated answer
+        # Step 6: Generate consolidated answer - OPTIMIZED
         consolidation_start = time.time()
         consolidated_answer = generate_consolidated_answer(original_question, query_results)
         consolidation_time = time.time() - consolidation_start
@@ -518,7 +656,7 @@ def multi_query_retrieval_with_individual_answers(
         }
         
         total_time = time.time() - start_time
-        logger.info(f"Total multi-query retrieval completed in {total_time:.2f}s "
+        logger.info(f"🚀 BLAZING FAST multi-query retrieval completed in {total_time:.2f}s "
                    f"(queries: {query_gen_time:.2f}s, retrieval: {retrieval_time:.2f}s, "
                    f"answers: {answer_time:.2f}s, consolidation: {consolidation_time:.2f}s)")
         
@@ -558,37 +696,33 @@ def multi_query_retrieval_with_individual_answers(
         }
 
 def generate_consolidated_answer(original_question: str, query_results: List[Dict]) -> str:
-    """Generate consolidated answer using connection pool"""
+    """Generate consolidated answer using connection pool - OPTIMIZED for faster processing"""
     consolidation_prompt = ChatPromptTemplate.from_messages([
         ("system", """
-        You are an intelligent assistant for an e-learning platform called LearnChain.
+        You are an intelligent assistant for LearnChain e-learning platform.
 
-        You have been given multiple related queries and their answers. Synthesize a 
-        comprehensive answer to the original question based on all the information provided.
+        Synthesize a comprehensive answer to the original question from the provided query results.
+        Focus on accuracy and completeness. If multiple answers have useful information, combine them coherently.
+        If no useful information is found, indicate insufficient information.
 
-        Focus on providing accurate and complete information. If there are multiple answers 
-        with useful information, combine them coherently. If only some queries yielded 
-        useful information, focus on those. If none yielded useful information, 
-        indicate that you don't have enough information.
-
-        Keep your answer concise and to the point. Use bullet points for lists if appropriate.
+        Be concise and use bullet points for lists when appropriate.
         """),
         ("human", """
-        Original question: {original_question}
+        Question: {original_question}
 
-        Query results:
+        Results:
         {query_results}
 
-        Please provide a consolidated answer to the original question.
+        Provide a consolidated answer.
         """)
     ])
 
-    # Format query results
+    # OPTIMIZATION: More efficient result formatting
     formatted_results = ""
-    for i, result in enumerate(query_results):
-        formatted_results += f"Query {i + 1}: {result['query']}\n"
-        formatted_results += f"Answer: {result['answer']}\n"
-        formatted_results += f"Sources: {', '.join(result['sources'])}\n\n"
+    useful_results = [r for r in query_results if r.get('has_info', False)]
+    
+    for i, result in enumerate(useful_results[:5]):  # Limit to top 5 for faster processing
+        formatted_results += f"{i+1}. Q: {result['query']}\n   A: {result['answer']}\n\n"
 
     try:
         pool = get_connection_pool()
@@ -609,17 +743,18 @@ def generate_consolidated_answer(original_question: str, query_results: List[Dic
         logger.error(f"Error generating consolidated answer: {e}")
         return f"Error consolidating answers: {str(e)}"
 
-# === EXISTING FUNCTIONALITY (OPTIMIZED) ===
+# === OPTIMIZED EXISTING FUNCTIONALITY ===
 
 def query_course_knowledge(
         course_id: str,
         question: str,
         use_query_enhancement: bool = True,
         use_enhanced_retrieval: bool = True,
-        k: int = DEFAULT_NUM_RESULTS
+        k: int = DEFAULT_NUM_RESULTS,
+        use_parallel_processing: bool = True
 ) -> Dict[str, Any]:
     """
-    Optimized query processing with connection pooling
+    OPTIMIZED: Query processing with connection pooling and optional parallel processing
     """
     print("---------------------------------------------------------------", course_id)
     course_id = "Course_" + course_id
@@ -627,7 +762,7 @@ def query_course_knowledge(
     try:
         start_time = time.time()
         
-        # Step 1: Enhance the query if requested (parallel ready)
+        # Step 1: Enhance the query if requested
         enhanced_question = question
         original_question = question
 
@@ -651,7 +786,7 @@ def query_course_knowledge(
             list_query=is_list_query
         )
 
-        # Step 4: Use connection pool for retrieval
+        # Step 4: Use OPTIMIZED connection pool for retrieval
         pool = get_connection_pool()
         graph_instance = pool.get_neo4j_graph()
         embeddings_instance = pool.get_embeddings()
@@ -720,7 +855,7 @@ def query_course_knowledge(
             "query_info": {}
         }
 
-# === KEEP ALL EXISTING HELPER FUNCTIONS ===
+# === OPTIMIZED HELPER FUNCTIONS ===
 
 def check_apoc_availability(graph: Neo4jGraph) -> bool:
     try:
@@ -730,56 +865,31 @@ def check_apoc_availability(graph: Neo4jGraph) -> bool:
         logger.warning(f"APOC availability check failed: {e}")
         return False
 
+# OPTIMIZATION: Only check APOC once at startup
 APOC_AVAILABLE = check_apoc_availability(graph)
 logger.info(f"APOC available: {APOC_AVAILABLE}")
 
 def check_vector_index():
-    """Check if the vector index exists and is functioning."""
+    """OPTIMIZED: Check if the vector index exists - faster check"""
     try:
-        index_exists = False
-
-        try:
-            result = graph.query(
-                """
-                SHOW INDEXES
-                YIELD name, type
-                WHERE name = $index_name AND type = 'VECTOR'
-                RETURN count(*) > 0 AS exists
-                """,
-                {"index_name": VECTOR_INDEX_NAME}
-            )
-            if result and result[0].get("exists", False):
-                index_exists = True
-        except Exception:
-            pass
-
-        if not index_exists:
-            try:
-                test_vector = [0.0] * 1536
-                graph.query(
-                    f"""
-                    CALL db.index.vector.queryNodes('{VECTOR_INDEX_NAME}', $embedding, 1)
-                    YIELD node
-                    RETURN count(node) as count
-                    """,
-                    {"embedding": test_vector}
-                )
-                index_exists = True
-            except Exception:
-                pass
-
-        if index_exists:
-            logger.info(f"Vector index '{VECTOR_INDEX_NAME}' exists")
-            return True
-        else:
-            logger.warning(f"Vector index '{VECTOR_INDEX_NAME}' does not exist or is not functional")
-            return False
+        # OPTIMIZATION: Single quick test instead of multiple checks
+        test_vector = [0.0] * 1536
+        graph.query(
+            f"""
+            CALL db.index.vector.queryNodes('{VECTOR_INDEX_NAME}', $embedding, 1)
+            YIELD node
+            RETURN count(node) as count
+            """,
+            {"embedding": test_vector}
+        )
+        logger.info(f"Vector index '{VECTOR_INDEX_NAME}' exists")
+        return True
 
     except Exception as e:
-        logger.error(f"Error checking vector index: {e}")
+        logger.warning(f"Vector index '{VECTOR_INDEX_NAME}' not functional: {e}")
         return False
 
-# Retrieval queries (unchanged)
+# Retrieval queries (unchanged - preserve working logic)
 BASIC_RETRIEVAL_QUERY = """
 MATCH (node)-[:PART_OF]->(d:Document)
 WITH node, score, d
@@ -896,7 +1006,7 @@ def classify_query_type(query: str) -> str:
 
     return "basic"
 
-# Keep all display functions (typewriter effect, etc.) unchanged
+# Keep all display functions unchanged (preserve working logic)
 def typewriter_effect(text: str, markdown: bool = True, delay_chars: float = CHAR_DELAY,
                       delay_words: float = WORD_DELAY) -> None:
     """Print text with a typewriter effect."""
@@ -993,14 +1103,14 @@ def display_rich_answer(answer: str, query_info: Dict = None, sources: List[str]
             console.print(raw_json)
 
 def run_interactive_mode():
-    """Run the retriever in interactive mode with enhanced output."""
+    """OPTIMIZED: Run the retriever in interactive mode with enhanced output."""
     global FAST_MODE, CHAR_DELAY, WORD_DELAY
 
     os.environ.setdefault("TERM", "xterm-256color")
 
-    console.print(Panel("[bold]LearnChain Knowledge Graph Retriever - OPTIMIZED[/bold]",
+    console.print(Panel("[bold]🚀 LearnChain Knowledge Graph Retriever - BLAZING FAST OPTIMIZED[/bold]",
                         style="bold green",
-                        subtitle="Type 'exit' to quit | Now with parallel processing!",
+                        subtitle="Type 'exit' to quit | Optimized for maximum speed!",
                         width=terminal_width - 2))
 
     if not check_vector_index():
@@ -1056,18 +1166,18 @@ def run_interactive_mode():
         WORD_DELAY = 0.02
 
     status_text = Text()
-    status_text.append("Features: ")
+    status_text.append("🚀 BLAZING FAST Features: ", style="bold green")
     status_text.append("Multi-query retrieval: ", style="bold")
     status_text.append(f"ENABLED ({num_queries} queries)\n" if use_multi_query else "DISABLED\n",
                        style="green" if use_multi_query else "red")
     status_text.append("Enhanced retrieval: ", style="bold")
     status_text.append("ENABLED\n" if use_enhanced_retrieval else "DISABLED\n",
                        style="green" if use_enhanced_retrieval else "red")
-    status_text.append("Parallel processing: ", style="bold")
+    status_text.append("⚡ Optimized parallel processing: ", style="bold")
     status_text.append(f"ENABLED ({MAX_WORKERS} workers, {CONNECTION_POOL_SIZE} pool)\n", style="green")
-    status_text.append("Connection pooling: ", style="bold")
+    status_text.append("🔥 Fast connection pooling: ", style="bold")
     status_text.append(f"ENABLED ({CONNECTION_POOL_SIZE} connections)\n", style="green")
-    status_text.append("Performance metrics: ", style="bold")
+    status_text.append("📊 Performance metrics: ", style="bold")
     status_text.append("ENABLED\n" if show_performance else "DISABLED\n",
                        style="green" if show_performance else "red")
     console.print(Panel(status_text, width=terminal_width - 2))
@@ -1078,9 +1188,9 @@ def run_interactive_mode():
         if question.lower() == "exit":
             break
 
-        with console.status("[bold green]Processing query with parallel optimization...[/bold green]"):
+        with console.status("[bold green]🚀 Processing query with BLAZING FAST optimization...[/bold green]"):
             if use_multi_query:
-                result = multi_query_retrieval_with_individual_answers(
+                result = optimized_multi_query_retrieval_with_individual_answers(
                     course_id,
                     question,
                     num_queries=num_queries,
@@ -1098,12 +1208,12 @@ def run_interactive_mode():
         # Show performance metrics if enabled
         if show_performance and "performance_metrics" in result:
             metrics = result["performance_metrics"]
-            console.print(Panel(f"[bold]Performance Metrics[/bold]\n"
-                               f"Total time: {metrics.get('total_time', 0):.2f}s\n"
-                               f"Query generation: {metrics.get('query_generation_time', 0):.2f}s\n"
-                               f"Retrieval: {metrics.get('retrieval_time', 0):.2f}s\n"
-                               f"Answer generation: {metrics.get('answer_generation_time', 0):.2f}s\n"
-                               f"Consolidation: {metrics.get('consolidation_time', 0):.2f}s",
+            console.print(Panel(f"⚡ [bold]BLAZING FAST Performance Metrics[/bold]\n"
+                               f"🚀 Total time: {metrics.get('total_time', 0):.2f}s\n"
+                               f"📝 Query generation: {metrics.get('query_generation_time', 0):.2f}s\n"
+                               f"🔍 Retrieval: {metrics.get('retrieval_time', 0):.2f}s\n"
+                               f"🤖 Answer generation: {metrics.get('answer_generation_time', 0):.2f}s\n"
+                               f"🔗 Consolidation: {metrics.get('consolidation_time', 0):.2f}s",
                                style="blue", width=terminal_width - 2))
 
         display_rich_answer(
@@ -1121,13 +1231,13 @@ def get_retriever_answer(question: str, course_id: str,
                          use_multi_query: bool = True,
                          num_queries: int = 5) -> Dict[str, Any]:
     """
-    Get an answer from the knowledge graph with optimized parallel processing.
+    🚀 BLAZING FAST: Get an answer from the knowledge graph with optimized parallel processing.
     """
     print("---------------------------------------------------------------", course_id)
     course_id = "Course_" + course_id
     try:
         if use_multi_query:
-            result = multi_query_retrieval_with_individual_answers(
+            result = optimized_multi_query_retrieval_with_individual_answers(
                 course_id,
                 question,
                 num_queries=num_queries,
