@@ -1,4 +1,4 @@
-# ui_integration.py
+# ui_integration.py - Fixed with performance optimizations
 
 import os
 import sys
@@ -24,16 +24,20 @@ else:                                                 # PyQt5 / PySide2
 
 # Set up logging
 logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Import training wheels
 import training_wheels as tw
 
 
 class BackgroundWorker(QThread):
-    """Background worker thread for handling knowledge retrieval"""
+    """Background worker thread for handling knowledge retrieval with caching"""
     finished = pyqtSignal(object)  # Signal with knowledge results
     status_update = pyqtSignal(str)  # Signal for status updates
     error = pyqtSignal(str)  # Signal for errors
+
+    # Simple cache for knowledge retrieval
+    _knowledge_cache = {}
 
     def __init__(self, goal: str, course_id: str):
         super().__init__()
@@ -41,10 +45,31 @@ class BackgroundWorker(QThread):
         self.course_id = course_id
 
     def run(self):
-        """Run the background task"""
+        """Run the background task with caching"""
         try:
+            # Create cache key
+            cache_key = f"{self.course_id}_{hash(self.goal)}"
+            
+            # Check cache first
+            if cache_key in self._knowledge_cache:
+                logger.info(f"📦 Using cached knowledge for: {self.goal[:50]}...")
+                self.status_update.emit("Using cached knowledge...")
+                cached_knowledge = self._knowledge_cache[cache_key]
+                self.status_update.emit(f"Found {len(cached_knowledge)} cached knowledge items")
+                self.finished.emit(cached_knowledge)
+                return
+
             self.status_update.emit("Fetching knowledge...")
             knowledge = fetch_knowledge_from_retriever(self.goal, self.course_id)
+            
+            # Cache the result for future use
+            if knowledge:
+                self._knowledge_cache[cache_key] = knowledge
+                # Limit cache size to prevent memory issues
+                if len(self._knowledge_cache) > 10:
+                    oldest_key = next(iter(self._knowledge_cache))
+                    del self._knowledge_cache[oldest_key]
+            
             self.status_update.emit(f"Found {len(knowledge)} knowledge items")
             self.finished.emit(knowledge)
         except Exception as e:
@@ -617,9 +642,7 @@ class RegionSelectionScreen(QWidget):
                         width = int(geometry.width() * scaling)
                         height = int(geometry.height() * scaling)
                         full_screen_region = (0, 0, width, height)
-                        logger.info(f"Using PyQt screen dimensions with scaling: {width}x{height}")
                 except Exception as e:
-                    logger.warning(f"Failed to get screen dimensions with xrandr: {e}")
                     # Fallback to PyQt
                     screen = QApplication.primaryScreen()
                     geometry = screen.geometry()
@@ -630,7 +653,6 @@ class RegionSelectionScreen(QWidget):
                 geometry = screen.geometry()
                 full_screen_region = (0, 0, geometry.width(), geometry.height())
 
-            logger.info(f"Setting full screen region: {full_screen_region}")
             tw.set_capture_region(full_screen_region)
 
             # Take a test screenshot to verify
@@ -647,7 +669,6 @@ class RegionSelectionScreen(QWidget):
             self.main_screen.show_goal_input()
             return True
         except Exception as e:
-            logger.error(f"Error setting full screen region: {e}")
             QMessageBox.critical(
                 self,
                 "Error",
@@ -674,27 +695,32 @@ class RegionSelectionScreen(QWidget):
             QMessageBox.critical(self, "S3 Connection Test", f"S3 connection failed: {error}")
 
 
-# BEST FIX: In ui_integration.py - Use the existing get_retriever_answer function
+# OPTIMIZED: Use the existing get_retriever_answer function with better performance
 
 def fetch_knowledge_from_retriever(goal: str, course_id: str) -> List[Dict[str, Any]]:
-    """Fetch knowledge using the proper get_retriever_answer function"""
+    """Fetch knowledge using ultra-fast preemptive retriever with optimizations"""
     try:
-        # Import the function that ALREADY handles course ID formatting correctly!
-        from retriever import get_retriever_answer
+        from retriever import get_retriever_answer, wait_for_full_initialization
         
-        logger.info(f"🔧 BEST FIX: Using get_retriever_answer for goal: '{goal}' (course: {course_id})")
+        # Ensure preemptive initialization is complete
+        logger.info("⏳ Ensuring preemptive initialization is complete...")
+        ready = wait_for_full_initialization(timeout=5.0)
         
-        # This function already:
-        # 1. Adds "Course_" prefix correctly  
-        # 2. Uses multi-query parallel processing
-        # 3. Has all the optimizations
+        if ready:
+            logger.info("✅ MAXIMUM SPEED MODE: Preemptive initialization complete!")
+        else:
+            logger.warning("⚠️ Proceeding without full preemptive initialization")
+        
+        logger.info(f"🚀 ULTRA-FAST: Using get_retriever_answer for goal: '{goal}' (course: {course_id})")
+        
+        # Use maximum speed settings with reduced queries for faster response
         result = get_retriever_answer(
             question=goal,
-            course_id=course_id,  # Just pass "001" - function will format it correctly
+            course_id=course_id,
             use_query_enhancement=True,
             use_enhanced_retrieval=True,
-            use_multi_query=True,  # Enable parallel multi-query processing
-            num_queries=10  # Use 10 diverse queries
+            use_multi_query=True,
+            num_queries=3  # OPTIMIZED: Reduced from 5 to 3 for faster response
         )
         
         # Extract knowledge from results (same format as multi_query_retrieval_with_individual_answers)
@@ -712,9 +738,9 @@ def fetch_knowledge_from_retriever(goal: str, course_id: str) -> List[Dict[str, 
             }
             all_knowledge.append(primary_knowledge)
         
-        # Add individual query results if available
+        # Add individual query results if available (limit to top 3 for performance)
         individual_results = result.get("individual_results", [])
-        for individual in individual_results:
+        for individual in individual_results[:3]:  # OPTIMIZED: Limit to top 3 results
             if individual.get("has_info", False) and individual.get("answer"):
                 knowledge_item = {
                     "query": individual["query"],
@@ -732,80 +758,21 @@ def fetch_knowledge_from_retriever(goal: str, course_id: str) -> List[Dict[str, 
             total_time = metrics.get("total_time", 0)
             num_queries = metrics.get("num_queries", 0) 
             valid_results = metrics.get("num_valid_results", 0)
-            course_id_used = metrics.get("course_id_used", "unknown")
             
             logger.info(f"🚀 PARALLEL retrieval via get_retriever_answer completed in {total_time:.2f}s!")
             logger.info(f"   → Processed {num_queries} queries simultaneously")
             logger.info(f"   → Got {valid_results} valid results")
-            logger.info(f"   → Course ID used: {course_id_used}")
         
         logger.info(f"Retrieved {len(all_knowledge)} knowledge items using get_retriever_answer")
         return all_knowledge
         
     except ImportError as e:
         logger.error(f"Could not import get_retriever_answer: {e}")
-        # Fallback to manual course ID formatting
-        return fetch_knowledge_with_manual_formatting(goal, course_id)
+        return []
     except Exception as e:
         logger.error(f"Error in get_retriever_answer: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return []
-
-
-def fetch_knowledge_with_manual_formatting(goal: str, course_id: str) -> List[Dict[str, Any]]:
-    """Fallback with manual course ID formatting"""
-    try:
-        from retriever import multi_query_retrieval_with_individual_answers
-        
-        # Manual formatting as fallback
-        if course_id and not course_id.startswith("Course_"):
-            formatted_course_id = "Course_" + course_id
-        else:
-            formatted_course_id = course_id
-            
-        logger.info(f"🔧 FALLBACK: Manual formatting {course_id} → {formatted_course_id}")
-        
-        result = multi_query_retrieval_with_individual_answers(
-            course_id=formatted_course_id,
-            original_question=goal,
-            num_queries=10,
-            results_per_query=3,
-            use_enhanced_retrieval=True,
-            debug_mode=False
-        )
-        
-        # Process results same as above...
-        all_knowledge = []
-        
-        if result.get("answer") and "I don't have enough information" not in result.get("answer", ""):
-            primary_knowledge = {
-                "query": goal,
-                "content": result["answer"],
-                "type": "consolidated_answer", 
-                "course_id": course_id,
-                "sources": result.get("source_documents", []),
-                "priority": 1
-            }
-            all_knowledge.append(primary_knowledge)
-        
-        individual_results = result.get("individual_results", [])
-        for individual in individual_results:
-            if individual.get("has_info", False) and individual.get("answer"):
-                knowledge_item = {
-                    "query": individual["query"],
-                    "content": individual["answer"], 
-                    "type": "individual_answer",
-                    "course_id": course_id,
-                    "sources": individual.get("sources", []),
-                    "priority": 2
-                }
-                all_knowledge.append(knowledge_item)
-        
-        return all_knowledge
-        
-    except Exception as e:
-        logger.error(f"Error in fallback formatting: {e}")
         return []
 
 
@@ -817,11 +784,8 @@ def create_main_thread_timer(parent, interval, callback):
     return timer
 
 # Function to enhance the MainScreen class with Training Wheels
-# Function to enhance the MainScreen class with Training Wheels
-# In ui_integration.py - Complete replacement for enhance_main_screen function
-
 def enhance_main_screen(MainScreen):
-    """Enhance the MainScreen class with Training Wheels features"""
+    """Enhance the MainScreen class with Training Wheels features and performance optimizations"""
 
     # Add method to show region selection screen
     def show_region_selection(self):
@@ -936,7 +900,7 @@ def enhance_main_screen(MainScreen):
             })
         else:
             self.add_instruction({
-                'instruction': "Could not find specific information for your goal. Will guide you based on general knowledge.",
+                'instruction': "Could not find specific information for your goal. Will guide you based on general knowledge. You can still retry with a more specific goal.",
                 'format': 'text'
             })
 
@@ -968,8 +932,8 @@ def enhance_main_screen(MainScreen):
                 self.add_instruction(error_content)
             except Exception as add_error:
                 logger.error(f"Failed to add error instruction: {add_error}")
+
     # Important: We need to correctly add the method to MainScreen
-    # This is where the error was occurring
     MainScreen._handle_guidance = _handle_guidance
 
     # Define a signal connection function
@@ -1079,7 +1043,7 @@ def enhance_main_screen(MainScreen):
     original_start_session = MainScreen.start_session
 
     def enhanced_start_session(self):
-        """Enhanced start_session method that initializes Training Wheels"""
+        """Enhanced start_session method that initializes Training Wheels with optimizations"""
         # ── 1. keep original behaviour (shows goal etc.) ────────────────
         original_start_session(self)
 
@@ -1149,7 +1113,7 @@ def enhance_main_screen(MainScreen):
             )
             return
 
-        # ── 7. kick off background knowledge worker ────────────────────
+        # ── 7. kick off background knowledge worker with optimizations ─
         self.knowledge_worker = BackgroundWorker(self.goal, self.course_id)
         self.knowledge_worker.status_update.connect(self.update_loading_status)
         self.knowledge_worker.error.connect(self.handle_knowledge_error)
@@ -1249,9 +1213,23 @@ def integrate_training_wheels(MainScreen):
     MainScreen = enhance_main_screen(MainScreen)
     return MainScreen
 
+# ADD at the bottom of ui_integration.py
+def trigger_early_initialization():
+    """Trigger early initialization when UI starts"""
+    try:
+        import retriever
+        logger.info("🚀 UI triggered preemptive initialization")
+        # Non-blocking - just ensure it's started
+        status = retriever.get_initialization_status()
+        logger.info(f"📊 Initialization status: {status}")
+    except Exception as e:
+        logger.error(f"❌ Early initialization trigger failed: {e}")
+
 
 if __name__ == "__main__":
     # Stand-alone test for S3 connection
     print("Testing S3 connection...")
     result = tw.test_s3_connection()
     print(result)
+    # Call immediately when module loads
+    trigger_early_initialization()

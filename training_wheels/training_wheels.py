@@ -1,4 +1,4 @@
-# training_wheels.py - Complete enhanced implementation with improvements
+# training_wheels.py - Fixed S3 upload deduplication and performance issues
 
 import os
 import json
@@ -6,9 +6,9 @@ import uuid
 import time
 import hashlib
 import threading
-import logging
 import requests
 import sys
+import base64
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Optional, Callable
 import pyautogui
@@ -16,18 +16,19 @@ import boto3
 from PIL import Image, ImageDraw, ImageFont
 import imagehash
 import tempfile
-import base64
 from io import BytesIO
 from dotenv import load_dotenv
 import dotenv
 
-# Load environment variables from .env file if present
-load_dotenv()
-dotenv.load_dotenv()  # Load environment variables from .env file
+# Import retriever for preemptive initialization
+try:
+    import retriever
+except ImportError as e:
+    print(f"Failed to import retriever: {e}")
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Load environment variables
+load_dotenv()
+dotenv.load_dotenv()
 
 
 # Configuration
@@ -46,10 +47,7 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
 
-    # AWS Polly - Text-to-Speech
-    POLLY_ENABLED = os.environ.get("POLLY_ENABLED", "false").lower() == "true"
-    POLLY_VOICE_ID = os.environ.get("POLLY_VOICE_ID", "Ruth")  # Default voice
-
+    
     # Screenshot settings
     SCREENSHOT_INTERVAL = float(os.environ.get("SCREENSHOT_INTERVAL", "0.1"))  # Seconds between screenshot checks
     CHANGE_THRESHOLD = int(os.environ.get("CHANGE_THRESHOLD", "8"))  # Perceptual hash difference threshold
@@ -68,13 +66,13 @@ class Config:
     # Storage paths
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     STORAGE_DIR = os.path.join(BASE_DIR, "training_data")
-    AUDIO_DIR = os.path.join(STORAGE_DIR, "audio")
+    
 
     @classmethod
     def ensure_dirs(cls):
         """Ensure all required directories exist"""
         os.makedirs(cls.STORAGE_DIR, exist_ok=True)
-        os.makedirs(cls.AUDIO_DIR, exist_ok=True)
+        
 
     @classmethod
     def get_session_dir(cls, session_id: str) -> str:
@@ -87,219 +85,92 @@ class Config:
     def validate(cls):
         """Validate critical configuration settings"""
         if cls.S3_ENABLED and (not cls.AWS_ACCESS_KEY_ID or not cls.AWS_SECRET_ACCESS_KEY):
-            logger.warning("S3 is enabled but AWS credentials are missing. Check your environment variables.")
+            print("S3 is enabled but AWS credentials are missing. Check your environment variables.")
             return False
 
         if not cls.OPENAI_API_KEY:
-            logger.warning("OpenAI API key is missing. Check your environment variables.")
+            print("OpenAI API key is missing. Check your environment variables.")
             return False
 
         return True
 
 
-# Audio Manager for Text-to-Speech
-class AudioManager:
-    """Manages text-to-speech functionality using AWS Polly"""
-
-    def __init__(self, s3_manager=None):
-        self.enabled = Config.POLLY_ENABLED
-        self.polly_client = None
-        self.s3_manager = s3_manager
-
-        # Try to initialize Polly client if enabled
-        if self.enabled:
-            try:
-                self.polly_client = boto3.client(
-                    'polly',
-                    aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
-                    aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
-                    region_name=Config.AWS_DEFAULT_REGION
-                )
-                # Test connection
-                self.polly_client.describe_voices(LanguageCode='en-US')
-                logger.info("AWS Polly connection successful")
-            except Exception as e:
-                logger.error(f"AWS Polly initialization failed: {e}")
-                self.enabled = False
-
-    def synthesize_speech(self, text: str, session_id: str, step_index: int) -> Optional[str]:
-        """Synthesize speech from text and return the file path"""
-        if not self.enabled or not self.polly_client:
-            return None
-
-        try:
-            # Clean text for speech synthesis (remove formatting, etc.)
-            clean_text = self._clean_text_for_speech(text)
-
-            # Prepare output path
-            session_dir = Config.get_session_dir(session_id)
-            audio_dir = os.path.join(session_dir, "audio")
-            os.makedirs(audio_dir, exist_ok=True)
-
-            filename = f"step_{step_index}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
-            file_path = os.path.join(audio_dir, filename)
-
-            # Call Polly to synthesize speech
-            response = self.polly_client.synthesize_speech(
-                Text=clean_text,
-                OutputFormat='mp3',
-                VoiceId=Config.POLLY_VOICE_ID,
-                Engine='neural'  # Use neural engine for better quality
-            )
-
-            # Save the audio to a file
-            with open(file_path, 'wb') as f:
-                f.write(response['AudioStream'].read())
-
-            logger.info(f"Text-to-speech audio saved to {file_path}")
-
-            # Also upload to S3 if enabled
-            if self.s3_manager and self.s3_manager.enabled:
-                url = self.s3_manager.upload_file(
-                    file_path,
-                    session_id,
-                    "audio",
-                    filename
-                )
-                logger.info(f"Audio uploaded to S3: {url}")
-
-            return file_path
-
-        except Exception as e:
-            logger.error(f"Text-to-speech synthesis failed: {e}")
-            return None
-
-    def _clean_text_for_speech(self, text: str) -> str:
-        """Clean text for better speech synthesis"""
-        # Remove code blocks, formatting symbols, etc.
-        # This is a simple implementation - could be expanded
-        import re
-
-        # Replace code blocks with placeholder
-        text = re.sub(r'```.*?```', 'Here is some code.', text, flags=re.DOTALL)
-
-        # Remove markdown formatting
-        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # Bold
-        text = re.sub(r'\*(.*?)\*', r'\1', text)  # Italic
-        text = re.sub(r'__(.*)__', r'\1', text)  # Underline
-        text = re.sub(r'_(.*)_', r'\1', text)  # Italic
-
-        # Replace bullet points with pauses
-        text = re.sub(r'^\s*[-*]\s*', 'Bullet point: ', text, flags=re.MULTILINE)
-
-        # Replace numbered lists
-        text = re.sub(r'^\s*(\d+)\.', r'Step \1:', text, flags=re.MULTILINE)
-
-        # Add pauses for readability
-        text = text.replace(".", ". ")
-        text = text.replace("!", "! ")
-        text = text.replace("?", "? ")
-
-        # Clean up extra spaces
-        text = re.sub(r'\s+', ' ', text).strip()
-
-        return text
-
-
-# S3 Manager
 class S3Manager:
-    """Manages S3 operations with graceful fallback to local storage"""
+    """Manages S3 operations with deduplication - S3 only, no fallbacks"""
 
     def __init__(self):
-        self.enabled = Config.S3_ENABLED
         self.s3_client = None
+        self._upload_cache = {}
+        self._file_hash_cache = {}
+        self._initialize_s3_client()
 
-        # Try to initialize S3 client if enabled
-        if self.enabled:
-            try:
-                self.s3_client = boto3.client(
-                    's3',
-                    aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
-                    aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
-                    region_name=Config.AWS_DEFAULT_REGION
-                )
-                # Test connection
-                self.s3_client.list_buckets()
-                logger.info("S3 connection successful")
+    def _get_file_hash(self, file_path: str) -> str:
+        try:
+            with open(file_path, 'rb') as f:
+                file_hash = hashlib.md5(f.read()).hexdigest()
+            return file_hash
+        except Exception:
+            return str(time.time())
 
-                # Test bucket
-                try:
-                    self.s3_client.head_bucket(Bucket=Config.S3_BUCKET_NAME)
-                    logger.info(f"S3 bucket '{Config.S3_BUCKET_NAME}' exists")
-                except Exception as e:
-                    logger.warning(f"S3 bucket test failed: {e}")
-                    self.enabled = False
-            except Exception as e:
-                logger.error(f"S3 initialization failed: {e}")
-                self.enabled = False
+    def _initialize_s3_client(self):
+        try:
+            self.s3_client = boto3.client(
+                's3',
+                aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
+                region_name=Config.AWS_DEFAULT_REGION
+            )
+            # Test connection
+            self.s3_client.list_buckets()
+            # Test bucket exists
+            self.s3_client.head_bucket(Bucket=Config.S3_BUCKET_NAME)
+        except Exception as e:
+            print(f"S3 initialization failed: {e}")
+            self.s3_client = None
 
     def upload_file(self, local_path: str, session_id: str, file_type: str, filename: str) -> str:
-        """Upload file to S3 and return URL with better file existence checks"""
-        if not self.enabled or not self.s3_client:
-            # Force S3 to be enabled in Config if it wasn't
-            if not Config.S3_ENABLED:
-                logger.warning("S3 was disabled in Config, but is required. Enabling.")
-                Config.S3_ENABLED = True
-                # Re-initialize the client
-                self.__init__()
+        if not self.s3_client:
+            self._initialize_s3_client()
+            if not self.s3_client:
+                raise Exception("S3 not available")
 
-                # If still not enabled after re-init, this is a critical error
-                if not self.enabled or not self.s3_client:
-                    logger.error("Critical error: S3 is required but could not be enabled")
-                    return local_path  # Return local path as fallback
+        # Check cache
+        cache_key = (session_id, file_type, filename)
+        if cache_key in self._upload_cache:
+            return self._upload_cache[cache_key]
 
-        # Check if file exists before attempting upload
+        # Check file hash
+        if os.path.exists(local_path):
+            file_hash = self._get_file_hash(local_path)
+            hash_key = f"{session_id}_{file_type}_{file_hash}"
+            if hash_key in self._file_hash_cache:
+                cached_hash, cached_url = self._file_hash_cache[hash_key]
+                if cached_hash == file_hash:
+                    self._upload_cache[cache_key] = cached_url
+                    return cached_url
+
+        # Ensure file exists
         if not os.path.exists(local_path):
-            logger.error(f"File does not exist: {local_path}")
-
-            # Generate a placeholder error image if this is a screenshot
             if file_type == "screenshots":
-                try:
-                    # Create directory if it doesn't exist
-                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                error_img = Image.new('RGB', (800, 600), color=(255, 255, 255))
+                draw = ImageDraw.Draw(error_img)
+                draw.text((50, 50), f"Error: Screenshot not found\n{datetime.now()}", fill=(255, 0, 0))
+                error_img.save(local_path)
 
-                    # Create a simple error image
-                    error_img = Image.new('RGB', (800, 600), color=(255, 255, 255))
-                    draw = ImageDraw.Draw(error_img)
-                    draw.text((50, 50), f"Error: Screenshot file not found\nTimestamp: {datetime.now()}",
-                              fill=(255, 0, 0))
-                    error_img.save(local_path)
-                    logger.info(f"Created placeholder error image: {local_path}")
-                except Exception as e:
-                    logger.error(f"Failed to create placeholder image: {e}")
-                    return local_path  # Return local path as fallback
-
-        try:
-            key = f"{Config.S3_FOLDER}/{session_id}/{file_type}/{filename}"
-
-            # Upload without ACL since the bucket doesn't support them
-            self.s3_client.upload_file(
-                local_path,
-                Config.S3_BUCKET_NAME,
-                key
-            )
-
-            url = f"https://{Config.S3_BUCKET_NAME}.s3.amazonaws.com/{key}"
-            logger.info(f"Uploaded to S3: {url}")
-            return url
-        except Exception as e:
-            logger.error(f"S3 upload failed: {e}")
-            # Try one more time with a short delay
-            time.sleep(1.0)
-            try:
-                key = f"{Config.S3_FOLDER}/{session_id}/{file_type}/{filename}"
-                self.s3_client.upload_file(
-                    local_path,
-                    Config.S3_BUCKET_NAME,
-                    key
-                )
-                url = f"https://{Config.S3_BUCKET_NAME}.s3.amazonaws.com/{key}"
-                logger.info(f"Retry successful - uploaded to S3: {url}")
-                return url
-            except Exception as e:
-                # Log the error but return the local path as fallback
-                logger.error(f"S3 upload retry failed: {e}")
-                return local_path
+        # Upload to S3
+        key = f"{Config.S3_FOLDER}/{session_id}/{file_type}/{filename}"
+        self.s3_client.upload_file(local_path, Config.S3_BUCKET_NAME, key)
+        url = f"https://{Config.S3_BUCKET_NAME}.s3.amazonaws.com/{key}"
+        
+        # Cache result
+        self._upload_cache[cache_key] = url
+        if os.path.exists(local_path):
+            file_hash = self._get_file_hash(local_path)
+            hash_key = f"{session_id}_{file_type}_{file_hash}"
+            self._file_hash_cache[hash_key] = (file_hash, url)
+        
+        return url
 
 
 # Screenshot Manager
@@ -317,11 +188,11 @@ class ScreenshotManager:
         """Set the screen region to capture and take test screenshot"""
         # Ensure region is valid (all values > 0)
         if not all(val > 0 for val in region[2:]):
-            logger.error(f"Invalid region dimensions: {region}")
+            print(f"Invalid region dimensions: {region}")
             return False
 
         self.region = region
-        logger.info(f"Screen capture region set to {region}")
+        print(f"Screen capture region set to {region}")
 
         # Take test screenshot
         success, test_path = self.take_test_screenshot()
@@ -330,7 +201,7 @@ class ScreenshotManager:
     def take_test_screenshot(self) -> Tuple[bool, Optional[str]]:
         """Take a test screenshot to verify the region works"""
         if not self.region:
-            logger.error("Cannot take test screenshot: No region set")
+            print("Cannot take test screenshot: No region set")
             return False, None
 
         try:
@@ -346,9 +217,9 @@ class ScreenshotManager:
                 # Optimize the screenshot
                 screenshot = self._optimize_image(screenshot)
                 screenshot.save(test_path)
-                logger.info(f"Test screenshot successful with PyAutoGUI: {test_path}")
+                print(f"Test screenshot successful with PyAutoGUI: {test_path}")
             except Exception as e:
-                logger.warning(f"PyAutoGUI screenshot failed: {e}, trying alternative methods")
+                print(f"PyAutoGUI screenshot failed: {e}, trying alternative methods")
 
                 # Try using system tools on Linux
                 if sys.platform.startswith('linux'):
@@ -362,7 +233,7 @@ class ScreenshotManager:
                             '-crop', f'{width}x{height}+{x}+{y}',
                             test_path
                         ], check=True)
-                        logger.info(f"Test screenshot successful with ImageMagick: {test_path}")
+                        print(f"Test screenshot successful with ImageMagick: {test_path}")
 
                         # Optimize the saved image
                         try:
@@ -370,10 +241,10 @@ class ScreenshotManager:
                             img = self._optimize_image(img)
                             img.save(test_path)
                         except Exception as opt_error:
-                            logger.warning(f"Failed to optimize ImageMagick screenshot: {opt_error}")
+                            print(f"Failed to optimize ImageMagick screenshot: {opt_error}")
 
                     except Exception as img_error:
-                        logger.warning(f"ImageMagick screenshot failed: {img_error}, trying gnome-screenshot")
+                        print(f"ImageMagick screenshot failed: {img_error}, trying gnome-screenshot")
 
                         # Try gnome-screenshot as a last resort
                         try:
@@ -385,7 +256,7 @@ class ScreenshotManager:
                                 '--file',
                                 test_path
                             ], check=True)
-                            logger.info(f"Test screenshot successful with gnome-screenshot: {test_path}")
+                            print(f"Test screenshot successful with gnome-screenshot: {test_path}")
 
                             # Optimize the saved image
                             try:
@@ -393,17 +264,17 @@ class ScreenshotManager:
                                 img = self._optimize_image(img)
                                 img.save(test_path)
                             except Exception as opt_error:
-                                logger.warning(f"Failed to optimize gnome-screenshot: {opt_error}")
+                                print(f"Failed to optimize gnome-screenshot: {opt_error}")
 
                         except Exception as gnome_error:
-                            logger.error(f"All screenshot methods failed: {gnome_error}")
+                            print(f"All screenshot methods failed: {gnome_error}")
                             return False, None
                 else:
                     # If not on Linux and PyAutoGUI failed, we fail
-                    logger.error(f"Screenshot failed and no alternatives available on this platform")
+                    print(f"Screenshot failed and no alternatives available on this platform")
                     return False, None
 
-            # Upload to S3
+            # Upload to S3 only once - no duplication
             self.s3_manager.upload_file(
                 test_path,
                 "test",
@@ -413,7 +284,7 @@ class ScreenshotManager:
 
             return True, test_path
         except Exception as e:
-            logger.error(f"Test screenshot failed: {e}")
+            print(f"Test screenshot failed: {e}")
             return False, None
 
     def _optimize_image(self, image: Image.Image) -> Image.Image:
@@ -427,7 +298,6 @@ class ScreenshotManager:
 
                 # Resize the image
                 image = image.resize((Config.MAX_SCREENSHOT_WIDTH, new_height), Image.LANCZOS)
-                logger.debug(f"Resized image to {Config.MAX_SCREENSHOT_WIDTH}x{new_height}")
 
             # Convert to RGB if needed (in case of RGBA)
             if image.mode != 'RGB':
@@ -435,13 +305,13 @@ class ScreenshotManager:
 
             return image
         except Exception as e:
-            logger.error(f"Error optimizing image: {e}")
+            print(f"Error optimizing image: {e}")
             return image  # Return original image on error
 
     def capture_screenshot(self, session_id: str, step_index: int, force: bool = False) -> Optional[str]:
         """Capture screenshot and return the path if it represents a change"""
         if not self.region:
-            logger.error("Cannot capture screenshot: No region set")
+            print("Cannot capture screenshot: No region set")
             return None
 
         try:
@@ -465,41 +335,23 @@ class ScreenshotManager:
 
                 # Verify the file was saved correctly
                 if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
-                    logger.error(f"Screenshot file missing or empty after capture: {file_path}")
+                    print(f"Screenshot file missing or empty after capture: {file_path}")
                     return None
 
-                logger.debug(f"Screenshot saved to {file_path}")
             except Exception as e:
-                logger.error(f"Failed to capture screenshot: {e}")
+                print(f"Failed to capture screenshot: {e}")
                 return None
-
-            # Use a file lock to prevent deletion during upload
-            lock_path = file_path + ".lock"
-            with open(lock_path, 'w') as lock_file:
-                lock_file.write("1")
 
             # Check if it represents a change or if we should force capture
             if force:
                 self.no_change_counter = 0
                 self.last_image_hash = imagehash.phash(screenshot)
-                logger.info(f"Forced screenshot captured: {file_path}")
+                print(f"Forced screenshot captured: {file_path}")
 
                 # Add to previous screenshots for context
                 self.previous_screenshots.append(file_path)
                 if len(self.previous_screenshots) > 5:  # Keep only the 5 most recent
                     self.previous_screenshots.pop(0)
-
-                # Upload to S3 - this happens synchronously
-                url = self.s3_manager.upload_file(
-                    file_path,
-                    session_id,
-                    "screenshots",
-                    filename
-                )
-
-                # Delete the lock file after upload
-                if os.path.exists(lock_path):
-                    os.remove(lock_path)
 
                 return file_path
 
@@ -509,24 +361,12 @@ class ScreenshotManager:
             if is_change:
                 # Significant change detected
                 self.no_change_counter = 0
-                logger.info(f"Screenshot captured due to significant change: {file_path}")
+                print(f"Screenshot captured due to significant change: {file_path}")
 
                 # Add to previous screenshots for context
                 self.previous_screenshots.append(file_path)
                 if len(self.previous_screenshots) > 5:  # Keep only the 5 most recent
                     self.previous_screenshots.pop(0)
-
-                # Upload to S3
-                url = self.s3_manager.upload_file(
-                    file_path,
-                    session_id,
-                    "screenshots",
-                    filename
-                )
-
-                # Delete the lock file after upload
-                if os.path.exists(lock_path):
-                    os.remove(lock_path)
 
                 return file_path
             else:
@@ -536,43 +376,27 @@ class ScreenshotManager:
                 # Check if we've had too many consecutive no-changes
                 if self.no_change_counter >= Config.MAX_CONSECUTIVE_NO_CHANGES:
                     self.no_change_counter = 0
-                    logger.info(
-                        f"Screenshot captured after {Config.MAX_CONSECUTIVE_NO_CHANGES} consecutive no-changes: {file_path}")
+                    print(f"Screenshot captured after {Config.MAX_CONSECUTIVE_NO_CHANGES} consecutive no-changes: {file_path}")
 
                     # Add to previous screenshots for context
                     self.previous_screenshots.append(file_path)
                     if len(self.previous_screenshots) > 5:  # Keep only the 5 most recent
                         self.previous_screenshots.pop(0)
 
-                    # Upload to S3
-                    url = self.s3_manager.upload_file(
-                        file_path,
-                        session_id,
-                        "screenshots",
-                        filename
-                    )
-
-                    # Delete the lock file after upload
-                    if os.path.exists(lock_path):
-                        os.remove(lock_path)
-
                     return file_path
                 else:
                     # No change and not enough consecutive no-changes
-                    # Don't delete the file if it has a lock
-                    if not os.path.exists(lock_path):
+                    # Delete the file since we're not using it
+                    try:
                         if os.path.exists(file_path):
                             os.remove(file_path)
-                        logger.info(
-                            f"No significant change detected ({self.no_change_counter}/{Config.MAX_CONSECUTIVE_NO_CHANGES}), screenshot discarded")
-                    else:
-                        logger.warning(f"File has lock, not deleting: {file_path}")
-                        # Clean up the lock file
-                        os.remove(lock_path)
+                    except Exception as e:
+                        print(f"Could not delete unused screenshot {file_path}: {e}")
+                    
                     return None
 
         except Exception as e:
-            logger.error(f"Screenshot capture failed: {e}")
+            print(f"Screenshot capture failed: {e}")
             return None
 
     def _is_significant_change(self, image: Image.Image) -> bool:
@@ -587,7 +411,6 @@ class ScreenshotManager:
 
             # Calculate difference
             difference = self.last_image_hash - current_hash
-            logger.debug(f"Image hash difference: {difference}")
 
             if difference > Config.CHANGE_THRESHOLD:
                 self.last_image_hash = current_hash
@@ -595,7 +418,7 @@ class ScreenshotManager:
 
             return False
         except Exception as e:
-            logger.error(f"Error checking for significant change: {e}")
+            print(f"Error checking for significant change: {e}")
             return True  # Default to assuming change on error
 
 
@@ -606,7 +429,7 @@ class LLMManager:
     def __init__(self, s3_manager=None):
         self.api_key = Config.OPENAI_API_KEY
         self.model = Config.OPENAI_MODEL
-        self.audio_manager = AudioManager(s3_manager)
+        
         self.s3_manager = s3_manager
 
     def get_next_instruction(self,
@@ -618,9 +441,9 @@ class LLMManager:
                              previous_steps: List[Dict[str, Any]] = None,
                              include_explanations: bool = False,
                              chat_history: List[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Get next instruction from LLM with robust error handling"""
+        """Get next instruction from LLM - S3 only"""
         try:
-            # Get screenshot URL - this will throw an exception if S3 upload fails
+            # Get S3 URL
             screenshot_url = self.s3_manager.upload_file(
                 screenshot_path,
                 session_id,
@@ -628,10 +451,8 @@ class LLMManager:
                 os.path.basename(screenshot_path)
             )
 
-            # Build the system message
+            # Build messages
             system_message = self._build_system_message(step_index, include_explanations)
-
-            # Build the user message text
             user_message_text = self._build_user_message_text(
                 goal=goal,
                 step_index=step_index,
@@ -640,12 +461,7 @@ class LLMManager:
                 chat_history=chat_history or []
             )
 
-            # Call OpenAI API with the S3 URL
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}"
-            }
-
+            # Call OpenAI API
             payload = {
                 "model": self.model,
                 "messages": [
@@ -661,15 +477,16 @@ class LLMManager:
                 "response_format": {"type": "json_object"}
             }
 
-            logger.info(f"Sending request to LLM with screenshot: {screenshot_url}")
             response = requests.post(
                 "https://api.openai.com/v1/chat/completions",
-                headers=headers,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.api_key}"
+                },
                 json=payload
             )
 
             if response.status_code != 200:
-                logger.error(f"LLM API error: {response.status_code} - {response.text}")
                 return {
                     "instruction": f"Error getting step {step_index} guidance. Please try again.",
                     "format": "text",
@@ -680,16 +497,14 @@ class LLMManager:
             result = response.json()
             content = result.get("choices", [{}])[0].get("message", {}).get("content")
 
-            # Check if content is empty or None
             if not content:
-                logger.error(f"Empty content from LLM: {result}")
                 return {
                     "instruction": f"Error generating step {step_index}. Please try again.",
                     "format": "text",
                     "error": True
                 }
 
-            # Save the raw response
+            # Save response
             session_dir = Config.get_session_dir(session_id)
             responses_dir = os.path.join(session_dir, "llm_responses")
             os.makedirs(responses_dir, exist_ok=True)
@@ -709,10 +524,9 @@ class LLMManager:
                     "response": result
                 }, f, indent=2)
 
-            # Upload to S3
             self.s3_manager.upload_file(response_path, session_id, "llm_responses", response_filename)
 
-            # Parse the content as JSON
+            # Parse JSON response
             try:
                 guidance = json.loads(content)
                 instruction_data = {
@@ -721,30 +535,12 @@ class LLMManager:
                     "details": guidance.get("details", {})
                 }
 
-                # Add explanation if present
                 if "explanation" in guidance:
                     instruction_data["explanation"] = guidance.get("explanation", "")
 
-                # Generate audio if enabled
-                if Config.POLLY_ENABLED:
-                    audio_text = instruction_data["instruction"]
-                    if include_explanations and "explanation" in instruction_data:
-                        audio_text += f" Here's why: {instruction_data['explanation']}"
-
-                    audio_path = self.audio_manager.synthesize_speech(
-                        audio_text,
-                        session_id,
-                        step_index
-                    )
-
-                    if audio_path:
-                        instruction_data["audio_path"] = audio_path
-
                 return instruction_data
 
-            except (json.JSONDecodeError, TypeError) as e:
-                logger.error(f"Failed to parse LLM response as JSON: {content} - Error: {e}")
-                # Fallback to using raw text or a default message
+            except (json.JSONDecodeError, TypeError):
                 if isinstance(content, str) and content.strip():
                     return {
                         "instruction": f"Step {step_index}: {content}",
@@ -757,8 +553,7 @@ class LLMManager:
                         "error": True
                     }
 
-        except Exception as e:
-            logger.error(f"Error getting next instruction: {e}")
+        except Exception:
             return {
                 "instruction": f"Error generating step {step_index}. Please try again.",
                 "format": "text",
@@ -780,6 +575,7 @@ class LLMManager:
     - For example, if the previous instruction was to open an application, in the current step if you see that the user has NOT YET opened the required application, your instruction could be to open that application.
     - If you see that previous steps haven't been completed, instruct/remind the user to complete those steps first if it might still matter. Sometimes, the user might be just faster than your instructions that they went faster than you could see. In those cases ask them to ensure and give the current instruction or ask them to go back to the respective screen and show you that previous step.
     - If the knowledge (context) doesn't have an info, feel free to use your common-sense and general outside knowledge. Don't have a hard reliance on the instructions/knowledge/provided context. You are allowed to be intuitive.
+    - IMPORTANT: If no course materials are available, use your general knowledge and best practices to guide the user through their goal. You can still provide valuable step-by-step guidance even without specific course content.
     - Sometimes, the context/knowledge might miss a step/even have unwanted steps. Handle these.
     - sometimes, the button name/screen/app name might be different than what you see on screen, at these times, do an intuitive verification/check. 
     - Try to visually confirm if the user has completed a previous step, you are allowed to ask them to go back and show you the completion. 
@@ -864,6 +660,8 @@ class LLMManager:
                 content = item.get('content', '')
                 source = item.get('type', 'general')
                 knowledge_text += f"{i + 1}. [{source}] {content[:500]}\n\n"
+        else:
+            knowledge_text = "No specific course materials found for this goal.\n"
 
         # Format chat history if available
         chat_text = ""
@@ -913,8 +711,10 @@ class SessionState:
         self.screenshots = []
         self.next_step_requested = False  # Flag for user-requested next step
         self.include_explanations = include_explanations  # Whether to include explanations
-        self.audio_enabled = Config.POLLY_ENABLED  # Whether to generate audio for steps
+        
         self.s3_manager = s3_manager
+        # Track uploaded files to prevent duplicates
+        self._uploaded_files = set()
 
         # Create session directory
         self.session_dir = Config.get_session_dir(session_id)
@@ -922,7 +722,6 @@ class SessionState:
 
         # Initialize state file
         self._save_state()
-        logger.info(f"Session initialized: {session_id}")
 
     def _save_state(self):
         """Save the current state to disk"""
@@ -938,7 +737,7 @@ class SessionState:
             "knowledge_count": len(self.knowledge),
             "screenshots": self.screenshots,
             "include_explanations": self.include_explanations,
-            "audio_enabled": self.audio_enabled,
+            
             "chat_history_count": len(self.chat_history)
         }
 
@@ -949,16 +748,18 @@ class SessionState:
             with open(self.state_file, 'w') as f:
                 json.dump(state, f, indent=2)
 
-            # Also save to S3
-            if self.s3_manager:
-                self.s3_manager.upload_file(self.state_file, self.session_id, "state", "session_state.json")
-
+            # Also save to S3 only once per save
+            state_upload_key = f"{self.session_id}_state_{os.path.basename(self.state_file)}"
+            if state_upload_key not in self._uploaded_files:
+                if self.s3_manager:
+                    self.s3_manager.upload_file(self.state_file, self.session_id, "state", "session_state.json")
+                    self._uploaded_files.add(state_upload_key)
 
         except Exception as e:
-            logger.error(f"Error saving session state: {e}")
+            print(f"Error saving session state: {e}")
 
     def add_step(self, instruction: Dict[str, Any], screenshot_path: str = None):
-        """Add a step to the session"""
+        """Add a step to the session with deduplication"""
         is_system_step = instruction.get("system_step", False)
 
         step = {
@@ -974,14 +775,25 @@ class SessionState:
         if self.include_explanations and "explanation" in instruction:
             step["explanation"] = instruction.get("explanation", "")
 
-        # Include audio path if present
-        if "audio_path" in instruction:
-            step["audio_path"] = instruction.get("audio_path", "")
-
         if screenshot_path:
-            # Save the screenshot path and upload URL
-            if self.s3_manager:
-                url = self.s3_manager.upload_file(screenshot_path, self.session_id, "screenshots",os.path.basename(screenshot_path))
+            # Create unique upload key for this screenshot
+            screenshot_upload_key = f"{self.session_id}_screenshot_{os.path.basename(screenshot_path)}"
+            
+            # Only upload if not already uploaded
+            if screenshot_upload_key not in self._uploaded_files:
+                if self.s3_manager:
+                    url = self.s3_manager.upload_file(
+                        screenshot_path, 
+                        self.session_id, 
+                        "screenshots",
+                        os.path.basename(screenshot_path)
+                    )
+                    self._uploaded_files.add(screenshot_upload_key)
+                else:
+                    url = screenshot_path
+            else:
+                # Use cached URL or reconstruct it
+                url = f"https://{Config.S3_BUCKET_NAME}.s3.amazonaws.com/{Config.S3_FOLDER}/{self.session_id}/screenshots/{os.path.basename(screenshot_path)}"
 
             step["screenshot_path"] = screenshot_path
             step["screenshot_url"] = url
@@ -1004,7 +816,6 @@ class SessionState:
         # Reset the next_step_requested flag
         self.next_step_requested = False
 
-        logger.info(f"Step {self.step_index - 1} added")
         return self.step_index - 1
 
     def add_knowledge(self, knowledge_items: List[Dict[str, Any]]):
@@ -1029,17 +840,17 @@ class SessionState:
                     "items": knowledge_items
                 }, f, indent=2)
 
-            # Upload to S3
-            # CHANGE: Use self.s3_manager instead
-            if self.s3_manager:
-                self.s3_manager.upload_file(knowledge_file, self.session_id, "knowledge",
-                                            os.path.basename(knowledge_file))
+            # Upload to S3 only once
+            knowledge_upload_key = f"{self.session_id}_knowledge_{os.path.basename(knowledge_file)}"
+            if knowledge_upload_key not in self._uploaded_files:
+                if self.s3_manager:
+                    self.s3_manager.upload_file(knowledge_file, self.session_id, "knowledge",
+                                                os.path.basename(knowledge_file))
+                    self._uploaded_files.add(knowledge_upload_key)
 
-
-            logger.info(f"Added {len(knowledge_items)} knowledge items to session")
             self._save_state()
-        except Exception as e:
-            logger.error(f"Error saving knowledge: {e}")
+        except Exception:
+            pass
 
     def add_chat_interaction(self, role: str, content: str):
         """Add a chat interaction to the session"""
@@ -1065,31 +876,27 @@ class SessionState:
                     "interaction": chat_item
                 }, f, indent=2)
 
-            # Upload to S3
+            # Upload to S3 only once
+            chat_upload_key = f"{self.session_id}_chat_{os.path.basename(chat_file)}"
+            if chat_upload_key not in self._uploaded_files:
+                if self.s3_manager:
+                    self.s3_manager.upload_file(chat_file, self.session_id, "chat", os.path.basename(chat_file))
+                    self._uploaded_files.add(chat_upload_key)
 
-            if self.s3_manager:
-                self.s3_manager.upload_file(chat_file, self.session_id, "chat", os.path.basename(chat_file))
-
-            logger.info(f"Added chat interaction: {role}")
+            print(f"Added chat interaction: {role}")
             self._save_state()
         except Exception as e:
-            logger.error(f"Error saving chat interaction: {e}")
+            print(f"Error saving chat interaction: {e}")
 
     def request_next_step(self):
         """Set flag for user-requested next step"""
         self.next_step_requested = True
-        logger.info("User requested next step")
+        print("User requested next step")
 
     def toggle_explanation_mode(self, enabled: bool):
         """Toggle explanation mode"""
         self.include_explanations = enabled
-        logger.info(f"Explanation mode set to: {enabled}")
-        self._save_state()
-
-    def toggle_audio_mode(self, enabled: bool):
-        """Toggle audio mode"""
-        self.audio_enabled = enabled
-        logger.info(f"Audio mode set to: {enabled}")
+        print(f"Explanation mode set to: {enabled}")
         self._save_state()
 
     def update_status(self, status: str):
@@ -1100,7 +907,7 @@ class SessionState:
             self.end_time = datetime.now().isoformat()
 
         self._save_state()
-        logger.info(f"Session status updated to: {status}")
+        print(f"Session status updated to: {status}")
 
     def get_current_progress(self) -> Dict[str, Any]:
         """Get the current session progress"""
@@ -1134,7 +941,6 @@ class TrainingWheels:
     def __init__(self):
         self.s3_manager = S3Manager()
         self.screenshot_manager = ScreenshotManager(self.s3_manager)
-        #self.llm_manager = LLMManager()
         self.llm_manager = LLMManager(self.s3_manager)
         self.session = None
         self.monitoring_thread = None
@@ -1148,8 +954,6 @@ class TrainingWheels:
         # Validate configuration
         Config.validate()
 
-        logger.info("Training Wheels initialized")
-
     def set_region(self, region: Tuple[int, int, int, int]) -> bool:
         """Set the screen region to monitor"""
         return self.screenshot_manager.set_region(region)
@@ -1162,8 +966,6 @@ class TrainingWheels:
         session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
         # Create session
-        #self.session = SessionState(session_id, user_id, course_id, goal, include_explanations)
-        #self.session = SessionState(session_id, user_id, course_id, goal, include_explanations, self.s3_manager)
         self.session = SessionState(session_id, user_id, course_id, goal, include_explanations, self.s3_manager)
         self.callback = callback
         self.status_callback = status_callback
@@ -1171,24 +973,22 @@ class TrainingWheels:
         # Update status
         self.session.update_status("initializing")
 
-        # Take initial screenshot and add first step (step 0 - system initialization)
+        # Take initial screenshot and add first step
         screenshot_path = self.screenshot_manager.capture_screenshot(
             session_id,
             0,
             force=True
         )
 
-        # Add initial step (placeholder until knowledge is fetched)
+        # Add initial step
         if screenshot_path:
-            # This is a system step, not shown to user
             init_step = {
                 "instruction": f"Initializing session for goal: {goal}",
                 "format": "text",
-                "system_step": True  # Mark as system step
+                "system_step": True
             }
             self.session.add_step(init_step, screenshot_path)
 
-        logger.info(f"Session started: {session_id}")
         self._notify_status("session_started", {"session_id": session_id})
         return session_id
 
@@ -1197,13 +997,12 @@ class TrainingWheels:
         if self.status_callback:
             try:
                 self.status_callback(status_type, data)
-            except Exception as e:
-                logger.error(f"Status-callback error: {e}")
+            except Exception:
+                pass
 
     def add_knowledge(self, knowledge: List[Dict[str, Any]]):
         """Add knowledge to the session"""
         if not self.session:
-            logger.error("Cannot add knowledge: No active session")
             return False
 
         self.session.add_knowledge(knowledge)
@@ -1212,7 +1011,6 @@ class TrainingWheels:
     def add_chat_interaction(self, role: str, content: str):
         """Add a chat interaction to the session knowledge"""
         if not self.session:
-            logger.error("Cannot add chat interaction: No active session")
             return False
 
         self.session.add_chat_interaction(role, content)
@@ -1221,29 +1019,17 @@ class TrainingWheels:
     def toggle_explanation_mode(self, enabled: bool):
         """Toggle explanation mode"""
         if not self.session:
-            logger.error("Cannot toggle explanation mode: No active session")
             return False
 
         self.session.toggle_explanation_mode(enabled)
         return True
 
-    def toggle_audio_mode(self, enabled: bool):
-        """Toggle audio mode"""
-        if not self.session:
-            logger.error("Cannot toggle audio mode: No active session")
-            return False
-
-        self.session.toggle_audio_mode(enabled)
-        return True
-
     def start_monitoring(self) -> bool:
         """Start the monitoring thread"""
         if not self.session:
-            logger.error("Cannot start monitoring: No active session")
             return False
 
         if not self.screenshot_manager.region:
-            logger.error("Cannot start monitoring: No screen region set")
             return False
 
         # Update session status
@@ -1254,23 +1040,18 @@ class TrainingWheels:
         self.monitoring_thread.daemon = True
         self.monitoring_thread.start()
 
-        logger.info("Screenshot monitoring started")
         return True
 
     def _monitoring_loop(self):
         """Background thread to monitor screenshots and generate steps"""
-        logger.info("Monitoring loop started")
-
         while self.monitoring_active:
             try:
                 # Skip if session is not in progress
                 if not self.session or self.session.status != "in_progress":
-                    logger.info("Monitoring loop stopping: Session not active")
                     break
 
                 # Check if user requested next step
                 if self.session.next_step_requested:
-                    logger.info("Processing user-requested next step")
                     self.process_next_step(force=True)
                 else:
                     # Capture screenshot and process if changed
@@ -1279,24 +1060,19 @@ class TrainingWheels:
                 # Sleep before next check
                 time.sleep(Config.SCREENSHOT_INTERVAL)
 
-            except Exception as e:
-                logger.error(f"Error in monitoring loop: {e}")
+            except Exception:
                 time.sleep(2.0)  # Longer sleep on error
 
-        logger.info("Monitoring loop stopped")
-
     def process_next_step(self, force: bool = False):
-        """Process the next step based on current screen"""
+        """Process the next step based on current screen with deduplication"""
         if not self.session:
-            logger.error("Cannot process step: No active session")
             return
 
         if not self.screenshot_manager.region:
-            logger.error("Cannot process step: No screen region set")
             return
 
         try:
-            # Capture screenshot
+            # Capture screenshot (this handles deduplication internally)
             screenshot_path = self.screenshot_manager.capture_screenshot(
                 self.session.session_id,
                 self.session.step_index,
@@ -1309,8 +1085,6 @@ class TrainingWheels:
 
             # If forced but no screenshot, create an error step
             if not screenshot_path and force:
-                logger.error("Failed to capture screenshot for forced step")
-
                 if self.callback:
                     self.callback({
                         "instruction": "Error capturing screenshot. Please check your application window.",
@@ -1319,39 +1093,31 @@ class TrainingWheels:
                     })
                 return
 
-            # Get LLM guidance if we have knowledge
-            if self.session.knowledge:
-                instruction = self.llm_manager.get_next_instruction(
-                    session_id=self.session.session_id,
-                    goal=self.session.goal,
-                    step_index=self.session.step_index,
-                    screenshot_path=screenshot_path,
-                    knowledge=self.session.knowledge,
-                    previous_steps=self.session.steps,
-                    include_explanations=self.session.include_explanations,
-                    chat_history=self.session.chat_history
-                )
-            else:
-                # If no knowledge yet, just use a placeholder
-                instruction = {
-                    "instruction": "Fetching relevant information for your goal...",
-                    "format": "text"
-                }
+            # Always get LLM guidance (even with no knowledge - let LLM use general knowledge)
+            instruction = self.llm_manager.get_next_instruction(
+                session_id=self.session.session_id,
+                goal=self.session.goal,
+                step_index=self.session.step_index,
+                screenshot_path=screenshot_path,
+                knowledge=self.session.knowledge,  # Pass whatever knowledge we have (could be empty)
+                previous_steps=self.session.steps,
+                include_explanations=self.session.include_explanations,
+                chat_history=self.session.chat_history
+            )
 
-            # Add the step
+            # Add the step (this handles S3 upload deduplication)
             self.session.add_step(instruction, screenshot_path)
 
             # Call the callback function
             if self.callback:
                 self.callback(instruction)
 
-        except Exception as e:
-            logger.error(f"Error processing step: {e}")
+        except Exception:
             # Try to inform the user
             if hasattr(self, 'callback') and self.callback:
                 try:
                     self.callback({
-                        "instruction": f"Error processing step: {e}",
+                        "instruction": f"Error processing step",
                         "format": "text",
                         "error": True
                     })
@@ -1361,7 +1127,6 @@ class TrainingWheels:
     def request_next_step(self) -> bool:
         """Force a new step on user request"""
         if not self.session or self.session.status != "in_progress":
-            logger.warning("Cannot request next step: Session not in progress")
             return False
 
         # Set the flag in the session state
@@ -1376,7 +1141,6 @@ class TrainingWheels:
     def pause_session(self) -> bool:
         """Pause the monitoring session"""
         if not self.session:
-            logger.warning("Cannot pause: No active session")
             return False
 
         self.monitoring_active = False
@@ -1385,29 +1149,24 @@ class TrainingWheels:
             self.monitoring_thread.join(timeout=1.0)
 
         self.session.update_status("paused")
-        logger.info("Session paused")
         return True
 
     def resume_session(self) -> bool:
         """Resume a paused session"""
         if not self.session:
-            logger.warning("Cannot resume: No active session")
             return False
 
         if self.session.status != "paused":
-            logger.warning(f"Cannot resume: Session is {self.session.status}")
             return False
 
         self.session.update_status("in_progress")
         self.start_monitoring()
 
-        logger.info("Session resumed")
         return True
 
     def end_session(self, success: bool = True) -> bool:
         """End the current session"""
         if not self.session:
-            logger.warning("Cannot end: No active session")
             return False
 
         # Stop monitoring
@@ -1425,14 +1184,13 @@ class TrainingWheels:
             try:
                 progress = self.session.get_current_progress()
                 self.status_callback("session_ended", progress)
-            except Exception as e:
-                logger.error(f"Error sending final status update: {e}")
+            except Exception:
+                pass
 
         # Clear callback reference to prevent memory leaks
         self.callback = None
         self.status_callback = None
 
-        logger.info(f"Session ended with status: {status}")
         return True
 
     def check_activity_timeout(self, timeout_minutes: Optional[int] = None) -> bool:
@@ -1454,7 +1212,6 @@ class TrainingWheels:
 
         # Check if the difference exceeds the timeout
         if time_diff.total_seconds() > (timeout_minutes * 60):
-            logger.warning(f"Session inactive for {timeout_minutes} minutes, considering timeout")
             return True
 
         return False
@@ -1514,11 +1271,6 @@ def toggle_explanation_mode(enabled: bool) -> bool:
     return get_instance().toggle_explanation_mode(enabled)
 
 
-def toggle_audio_mode(enabled: bool) -> bool:
-    """Toggle audio mode"""
-    return get_instance().toggle_audio_mode(enabled)
-
-
 def start_guidance() -> bool:
     """Start the guidance monitoring"""
     return get_instance().start_monitoring()
@@ -1539,10 +1291,34 @@ def resume_guidance() -> bool:
     return get_instance().resume_session()
 
 
+def cleanup_session_data(session_id: str):
+    """Clean up all session data when session ends"""
+    try:
+        session_dir = Config.get_session_dir(session_id)
+        if os.path.exists(session_dir):
+            import shutil
+            shutil.rmtree(session_dir)
+    except Exception:
+        pass
+
+
 def end_guidance(success: bool = True) -> bool:
     """End the current guidance session"""
-    return get_instance().end_session(success)
-
+    instance = get_instance()
+    session_id = None
+    
+    # Get session ID before ending
+    if instance.session:
+        session_id = instance.session.session_id
+    
+    # End the session
+    result = instance.end_session(success)
+    
+    # Clean up session data after ending
+    if session_id:
+        cleanup_session_data(session_id)
+    
+    return result
 
 def test_s3_connection():
     """Test S3 connection and return result"""
@@ -1568,31 +1344,6 @@ def test_s3_connection():
             "connected": True,
             "bucket_exists": bucket_exists,
             "buckets": [bucket['Name'] for bucket in response['Buckets']]
-        }
-    except Exception as e:
-        return {
-            "connected": False,
-            "error": str(e)
-        }
-
-
-def test_polly_connection():
-    """Test AWS Polly connection and return result"""
-    try:
-        polly_client = boto3.client(
-            'polly',
-            aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
-            region_name=Config.AWS_DEFAULT_REGION
-        )
-
-        # Test connection by listing voices
-        response = polly_client.describe_voices(LanguageCode='en-US')
-
-        return {
-            "connected": True,
-            "voices": [voice['Id'] for voice in response['Voices']],
-            "default_voice": Config.POLLY_VOICE_ID
         }
     except Exception as e:
         return {

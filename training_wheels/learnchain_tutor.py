@@ -269,145 +269,6 @@ class TypewriterLabel(QLabel):
             self.animation_timer.stop()
 
 
-class AudioPlayer(QWidget):
-    """Audio player widget for step instructions"""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedHeight(40)
-        self.current_audio_path = None
-
-        # Set up audio player components
-        self.player = QMediaPlayer()
-        self.audio_output = QAudioOutput()
-        self.player.setAudioOutput(self.audio_output)
-
-        # Connect signals
-        self.player.playbackStateChanged.connect(self.update_play_button)
-        self.player.positionChanged.connect(self.update_position)
-        self.player.durationChanged.connect(self.update_duration)
-
-        # Create UI
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        # Play/Pause button
-        self.play_button = QPushButton()
-        self.play_button.setIcon(QIcon(os.path.join(ICON_DIR, "play_audio.png")))
-        self.play_button.setFixedSize(32, 32)
-        self.play_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {ACCENT_COLOR};
-                color: white;
-                border: none;
-                border-radius: 16px;
-            }}
-            QPushButton:hover {{
-                background-color: #1e40af;
-            }}
-        """)
-        self.play_button.clicked.connect(self.toggle_play)
-        layout.addWidget(self.play_button)
-
-        # Progress slider
-        self.progress_slider = QSlider(Qt.Orientation.Horizontal)
-        self.progress_slider.setRange(0, 100)
-        self.progress_slider.setValue(0)
-        self.progress_slider.setStyleSheet(f"""
-            QSlider::groove:horizontal {{
-                border: 1px solid {BORDER_COLOR};
-                height: 6px;
-                background: {LIGHT_GRAY};
-                border-radius: 3px;
-            }}
-            QSlider::handle:horizontal {{
-                background: {ACCENT_COLOR};
-                border: none;
-                width: 14px;
-                height: 14px;
-                margin: -4px 0;
-                border-radius: 7px;
-            }}
-            QSlider::sub-page:horizontal {{
-                background: {ACCENT_COLOR};
-                border-radius: 3px;
-            }}
-        """)
-        self.progress_slider.sliderMoved.connect(self.set_position)
-        layout.addWidget(self.progress_slider)
-
-        # Volume button
-        self.volume_button = QPushButton()
-        self.volume_button.setIcon(QIcon(os.path.join(ICON_DIR, "volume.png")))
-        self.volume_button.setFixedSize(32, 32)
-        self.volume_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {LIGHT_GRAY};
-                color: {TEXT_COLOR};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 16px;
-            }}
-            QPushButton:hover {{
-                background-color: #e2e8f0;
-            }}
-        """)
-        self.volume_button.clicked.connect(self.toggle_mute)
-        layout.addWidget(self.volume_button)
-
-        # Set initial volume
-        self.audio_output.setVolume(0.7)
-
-        # Hide player initially
-        self.hide()
-
-    def set_audio(self, audio_path):
-        """Set the audio file to play"""
-        if not audio_path or not os.path.exists(audio_path):
-            self.hide()
-            return
-
-        self.current_audio_path = audio_path
-        self.player.setSource(QUrl.fromLocalFile(audio_path))
-        self.show()
-
-    def toggle_play(self):
-        """Toggle between play and pause"""
-        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
-            self.player.pause()
-        else:
-            self.player.play()
-
-    def toggle_mute(self):
-        """Toggle mute/unmute"""
-        self.audio_output.setMuted(not self.audio_output.isMuted())
-
-        # Update button icon
-        if self.audio_output.isMuted():
-            self.volume_button.setIcon(QIcon(os.path.join(ICON_DIR, "volume_mute.png")))
-        else:
-            self.volume_button.setIcon(QIcon(os.path.join(ICON_DIR, "volume.png")))
-
-    def update_play_button(self, state):
-        """Update play button icon based on playback state"""
-        if state == QMediaPlayer.PlaybackState.PlayingState:
-            self.play_button.setIcon(QIcon(os.path.join(ICON_DIR, "pause_audio.png")))
-        else:
-            self.play_button.setIcon(QIcon(os.path.join(ICON_DIR, "play_audio.png")))
-
-    def update_position(self, position):
-        """Update slider position during playback"""
-        if self.player.duration() > 0:
-            self.progress_slider.setValue(int(position / self.player.duration() * 100))
-
-    def update_duration(self, duration):
-        """Update slider when audio duration changes"""
-        self.progress_slider.setValue(0)
-
-    def set_position(self, position):
-        """Set playback position when slider is moved"""
-        if self.player.duration() > 0:
-            new_position = int(position / 100.0 * self.player.duration())
-            self.player.setPosition(new_position)
 
 def render_instruction_blocks(blocks: List[Dict[str, str]], layout: QVBoxLayout):
     for block in blocks:
@@ -509,7 +370,7 @@ class AnimatedStep(QFrame):
         if isinstance(content, dict):
             blocks = []
             explanation = content.get('explanation', '')
-            audio_path = content.get('audio_path', None)
+            
 
             try:
                 instruction_data = content.get('instruction', '')
@@ -569,10 +430,7 @@ class AnimatedStep(QFrame):
             if explanation:
                 self.add_explanation(explanation, layout)
 
-            if audio_path and os.path.exists(audio_path):
-                self.audio_player = AudioPlayer()
-                self.audio_player.set_audio(audio_path)
-                layout.addWidget(self.audio_player)
+            
         else:
             self.create_text_block(content, layout, is_current)
 
@@ -1808,7 +1666,7 @@ class MainScreen(QWidget):
         self.is_session_active = False
         self.is_session_paused = False
         self.explanation_mode = False  # Track if explanation mode is enabled
-        self.audio_mode = False  # Track if audio mode is enabled
+        
 
         # Create chat dialog
         self.chat_dialog = ChatDialog(self)
@@ -1824,6 +1682,17 @@ class MainScreen(QWidget):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         self.init_ui()
+        try:
+            import retriever
+            logger.info("🚀 Starting preemptive initialization on app startup...")
+            ready = retriever.wait_for_full_initialization(timeout=2.0)  # Non-blocking check
+            if ready:
+                logger.info("✅ Preemptive initialization complete!")
+            else:
+                logger.info("⏳ Preemptive initialization in progress...")
+        except Exception as e:
+            logger.error(f"❌ Preemptive initialization error: {e}")
+        
 
     def init_ui(self):
         self.layout = QVBoxLayout(self)
@@ -1894,8 +1763,6 @@ class MainScreen(QWidget):
         """)
         goal_layout.addWidget(self.goal_input)
 
-        # Add toggle switches for explanation mode and audio
-        # Add toggle switches for explanation mode and audio
         toggles_frame = QFrame()
         toggles_frame.setStyleSheet(f"""
             QFrame {{
@@ -1922,17 +1789,7 @@ class MainScreen(QWidget):
         explanation_container.addWidget(self.explanation_toggle)
         toggles_layout.addLayout(explanation_container)
 
-        # Audio mode toggle
-        audio_container = QHBoxLayout()
-        audio_label = QLabel("Enable Audio")
-        audio_label.setFont(QFont("Inter", 11))
-        audio_label.setStyleSheet(f"color: {TEXT_COLOR};")
-        audio_container.addWidget(audio_label)
-        audio_container.addSpacing(10)
-        self.audio_toggle = ToggleSwitch()
-        self.audio_toggle.toggled.connect(self.toggle_audio_mode)
-        audio_container.addWidget(self.audio_toggle)
-        toggles_layout.addLayout(audio_container)
+        
 
         toggles_layout.addStretch()  # Push toggles to left
 
@@ -2098,26 +1955,7 @@ class MainScreen(QWidget):
         self.explanation_btn.clicked.connect(lambda: self.toggle_explanation_mode(not self.explanation_mode))
         button_layout.addWidget(self.explanation_btn)
 
-        # Audio toggle button
-        self.audio_btn = QPushButton()
-        self.audio_btn.setFixedSize(50, 50)
-        self.audio_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.audio_btn.setIcon(QIcon(os.path.join(ICON_DIR, "audio.png")))
-        self.audio_btn.setIconSize(QSize(24, 24))
-        self.audio_btn.setToolTip("Toggle audio mode")
-        self.audio_btn.setStyleSheet(f"
-            QPushButton {{
-                background-color: {PRIMARY_COLOR};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 25px;
-            }}
-            QPushButton:hover {{
-                background-color: {LIGHT_GRAY};
-                border: 1px solid {ACCENT_COLOR};
-            }}
-        ")
-        self.audio_btn.clicked.connect(lambda: self.toggle_audio_mode(not self.audio_mode))
-        button_layout.addWidget(self.audio_btn)
+        
 """
         # Add spacer to push buttons to the right
         button_layout.addStretch()
@@ -2288,60 +2126,6 @@ class MainScreen(QWidget):
                 'system_step': True
             })
 
-    def toggle_audio_mode(self, enabled):
-        """Toggle audio mode on/off"""
-        self.audio_mode = enabled
-
-        # Update UI
-        if hasattr(self, 'audio_toggle'):
-            self.audio_toggle.setChecked(enabled)
-
-        # Update button appearance
-        if hasattr(self, 'audio_btn'):
-            if enabled:
-                self.audio_btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {ACCENT_COLOR};
-                        border: 2px solid #1e40af;
-                        border-radius: 25px;
-                    }}
-                    QPushButton:hover {{
-                        background-color: #2563eb;
-                    }}
-                """)
-            else:
-                self.audio_btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {PRIMARY_COLOR};
-                        border: 1px solid {BORDER_COLOR};
-                        border-radius: 25px;
-                    }}
-                    QPushButton:hover {{
-                        background-color: {LIGHT_GRAY};
-                        border: 1px solid {ACCENT_COLOR};
-                    }}
-                """)
-
-        # Add notification
-        notification = {
-            'instruction': f"🔊 Audio mode {'enabled' if enabled else 'disabled'}",
-            'format': 'text',
-            'system_step': True
-        }
-        self.add_instruction(notification)
-
-        # Update training wheels if active
-        if hasattr(self, 'is_training_wheels_active') and self.is_training_wheels_active:
-            import training_wheels as tw
-            tw.toggle_audio_mode(enabled)
-
-            # Add step to inform user
-            action = "enabled" if enabled else "disabled"
-            self.add_instruction({
-                'instruction': f"Audio mode {action}. {('Steps will now be read aloud.' if enabled else 'Steps will no longer be read aloud.')}",
-                'format': 'text',
-                'system_step': True
-            })
 
     def start_session(self):
         """Start a new training session with synchronized step indexes"""
@@ -2357,8 +2141,7 @@ class MainScreen(QWidget):
             # Get explanation mode state
             self.explanation_mode = self.explanation_toggle.isChecked()
 
-            # Get audio mode state
-            self.audio_mode = self.audio_toggle.isChecked()
+            
 
             # Update UI visibility
             self.goal_input_section.setVisible(False)
@@ -2973,6 +2756,8 @@ if __name__ == "__main__":
         print("✅ App ID set")
     except Exception as e:
         print(f"❌ Failed to set App ID: {e}")
+    
+   
 
     # Enable high DPI scaling for PyQt6
     try:
@@ -3034,3 +2819,10 @@ if __name__ == "__main__":
             QTimer.singleShot(200, lambda: set_taskbar_icon(window, icon_path))
 
     app.exec()
+     # Trigger preemptive initialization IMMEDIATELY
+    try:
+        import retriever
+        print("🚀 ULTRA-FAST MODE: Starting preemptive initialization...")
+        # Start but don't wait - let it run in background
+    except Exception as e:
+        print(f"❌ Preemptive initialization failed: {e}")
