@@ -1,4 +1,4 @@
-# learnchain_tutor.py
+# learnchain_tutor.py - Fixed version
 
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton,
@@ -35,24 +35,26 @@ import ctypes
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Modern, professional color scheme
-PRIMARY_COLOR = "#FFFFFF"  # White background
-ACCENT_COLOR = "#dc2626"  # Blue accent color
-SECONDARY_COLOR = "#10b981"  # Green for success
-TEXT_COLOR = "#1e293b"  # Dark slate for text
-LIGHT_GRAY = "#f8fafc"  # Light gray for alternate backgrounds
-GRAY_TEXT = "#64748b"  # Medium gray for secondary text
-BUTTON_ORANGE = "#1e293b"  # Orange for pause button
-BUTTON_RED = "#dc2626"  # Red for stop button
-BUTTON_BLUE = "#dc2626"  # Blue for next button
-BORDER_COLOR = "#e2e8f0"  # Light gray for borders
-DISABLED_COLOR = "#cbd5e1"  # Disabled button color
-STEP_LABEL_BG = "#ef4444"  # Light blue for step number badge
-PAUSED_BG_COLOR = "#f1f5f9"  # Lighter gray for paused state
-GOAL_BG_COLOR = "#dc2626"  # Very light blue for goal background
-GOAL_BORDER_COLOR = "#ef4444"  # Light blue for goal border
-EXPLANATION_BG_COLOR = "#fffbeb"  # Light yellow for explanation background
-EXPLANATION_BORDER_COLOR = "#fcd34d"  # Yellow for explanation border
+# Modern dark theme color scheme
+PRIMARY_COLOR = "#121212"  # Deep dark gray background
+CARD_BACKGROUND = "rgba(30, 30, 30, 0.8)"  # Semi-transparent for glass effect
+ACCENT_COLOR = "#FF3B30"  # Vivid orange-red
+SECONDARY_COLOR = "#10b981"  # Keep green for success
+TEXT_COLOR = "#FFFFFF"  # Pure white for primary text
+SECONDARY_TEXT = "#CCCCCC"  # Soft gray for secondary text
+LIGHT_GRAY = "#2A2A2A"  # Darker gray for alternate backgrounds
+GRAY_TEXT = "#CCCCCC"  # Medium gray for secondary text
+BUTTON_ORANGE = "#FF3B30"  # Use accent color
+BUTTON_RED = "#dc2626"  # Keep red for stop
+BUTTON_BLUE = "#FF3B30"  # Use accent color for consistency
+BORDER_COLOR = "#3A3A3A"  # Darker border
+DISABLED_COLOR = "#555555"  # Darker disabled state
+STEP_LABEL_BG = "#FF3B30"  # Use accent color
+PAUSED_BG_COLOR = "#1A1A1A"  # Slightly different dark
+GOAL_BG_COLOR = "rgba(30, 30, 30, 0.6)"  # Glass effect
+GOAL_BORDER_COLOR = "#FF3B30"  # Accent border
+EXPLANATION_BG_COLOR = "rgba(45, 45, 45, 0.8)"  # Dark explanation background
+EXPLANATION_BORDER_COLOR = "#FF3B30"  # Accent border
 
 #Icon paths (assuming these files exist in an 'icons' directory)
 #ICON_DIR = os.path.join(os.path.dirname(__file__), "icons")
@@ -230,17 +232,14 @@ class StepNumberLabel(QLabel):
         self.setFixedSize(40, 24)
         self.setFont(QFont("Inter", 11, QFont.Weight.Bold))
         self.setStyleSheet(f"""
-            color: {ACCENT_COLOR};
+            color: white;
             background-color: {STEP_LABEL_BG};
             border-radius: 12px;
         """)
 
 
-
-
-
 class TypewriterLabel(QLabel):
-    """Label with typewriter animation effect"""
+    """Label with typewriter animation effect - FIXED VERSION"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -253,11 +252,18 @@ class TypewriterLabel(QLabel):
 
     def set_text_with_animation(self, text):
         """Start typewriter animation with the given text"""
+        # Ensure text is a string
+        if not isinstance(text, str):
+            text = str(text)
+            
         self.full_text = text
         self.current_text = ""
         self.char_index = 0
         self.setText("")
-        self.animation_timer.start(self.char_delay)
+        
+        # Only start animation if we have text
+        if self.full_text:
+            self.animation_timer.start(self.char_delay)
 
     def update_text(self):
         """Update the displayed text with the next character"""
@@ -267,7 +273,6 @@ class TypewriterLabel(QLabel):
             self.char_index += 1
         else:
             self.animation_timer.stop()
-
 
 
 def render_instruction_blocks(blocks: List[Dict[str, str]], layout: QVBoxLayout):
@@ -280,21 +285,23 @@ def render_instruction_blocks(blocks: List[Dict[str, str]], layout: QVBoxLayout)
             text_label = QLabel(content)
             text_label.setWordWrap(True)
             text_label.setFont(QFont("Inter", 13))
+            text_label.setStyleSheet(f"color: {TEXT_COLOR};")
             layout.addWidget(text_label)
 
         elif btype == "link":
             frame = QFrame()
-            frame.setStyleSheet("""
-                QFrame {
-                    background-color: #f1f5f9;
-                    border: 1px solid #e2e8f0;
+            frame.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {LIGHT_GRAY};
+                    border: 1px solid {BORDER_COLOR};
                     border-radius: 5px;
                     padding: 6px;
-                }
+                }}
             """)
             hlayout = QHBoxLayout(frame)
             link_label = QLabel(label or content)
             link_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            link_label.setStyleSheet(f"color: {TEXT_COLOR};")
             hlayout.addWidget(link_label)
 
             copy_btn = QPushButton("Copy")
@@ -315,7 +322,6 @@ def parse_instruction_json(json_str: str) -> Optional[List[Dict[str, str]]]:
         return None
 
 
-
 class AnimatedStep(QFrame):
     """A custom widget for displaying an instruction step with animations"""
 
@@ -330,7 +336,7 @@ class AnimatedStep(QFrame):
         if is_current:
             self.setStyleSheet(f"""
                 #stepItem {{
-                    background-color: transparent;
+                    background-color: rgba(45, 45, 45, 0.6);
                     border-left: 4px solid {ACCENT_COLOR};
                     border-radius: 6px;
                     margin: 4px 0px;
@@ -339,7 +345,7 @@ class AnimatedStep(QFrame):
         else:
             self.setStyleSheet(f"""
                 #stepItem {{
-                    background-color: transparent;
+                    background-color: rgba(30, 30, 30, 0.4);
                     border-left: 1px solid {BORDER_COLOR};
                     border-radius: 6px;
                     margin: 4px 0px;
@@ -358,6 +364,7 @@ class AnimatedStep(QFrame):
         self.step_badge = StepNumberLabel(step_number)
         step_header.addWidget(self.step_badge)
 
+        # ✅ Remove "instructions enabled"
         step_label = QLabel(f"Step {step_number}")
         step_label.setFont(QFont("Inter", 12, QFont.Weight.Bold))
         step_label.setStyleSheet(f"color: {ACCENT_COLOR};")
@@ -366,79 +373,174 @@ class AnimatedStep(QFrame):
         step_header.addStretch()
         layout.addLayout(step_header)
 
-        # Main logic: check for new JSON "blocks" format
-        if isinstance(content, dict):
-            blocks = []
-            explanation = content.get('explanation', '')
-            
+        # Defensive: handle empty content
+        if not content:
+            print("⚠️ No step content found — skipping.")
+            return
 
-            try:
-                instruction_data = content.get('instruction', '')
-                if isinstance(instruction_data, str):
-                    parsed = json.loads(instruction_data)
-                    blocks = parsed.get('blocks', [])
-                    if not explanation and 'explanation' in parsed:
-                        explanation = parsed.get('explanation', '')
-                elif isinstance(instruction_data, dict):
-                    blocks = instruction_data.get('blocks', [])
-            except Exception:
-                pass  # fallback to legacy
+        # ROBUST CONTENT HANDLING - Convert everything to safe format
+        try:
+            # Main logic: check for new JSON "blocks" format
+            if isinstance(content, dict):
+                blocks = []
+                explanation = content.get('explanation', '')
+                
+                try:
+                    instruction_data = content.get('instruction', '')
+                    
+                    # Handle different instruction formats
+                    if isinstance(instruction_data, list):
+                        # Instruction is already a list of blocks
+                        blocks = instruction_data
+                    elif isinstance(instruction_data, str):
+                        # Try to parse as JSON
+                        try:
+                            parsed = json.loads(instruction_data)
+                            blocks = parsed.get('blocks', []) if isinstance(parsed, dict) else []
+                            if not explanation and isinstance(parsed, dict) and 'explanation' in parsed:
+                                explanation = parsed.get('explanation', '')
+                        except (json.JSONDecodeError, TypeError):
+                            # If not JSON, treat as plain text
+                            blocks = [{"type": "text", "content": str(instruction_data)}]
+                    elif isinstance(instruction_data, dict):
+                        blocks = instruction_data.get('blocks', [])
+                    else:
+                        # Fallback: convert whatever it is to text
+                        blocks = [{"type": "text", "content": str(instruction_data)}]
+                        
+                except Exception as e:
+                    print(f"Error processing instruction data: {e}")
+                    # Emergency fallback
+                    blocks = [{"type": "text", "content": "Error processing instruction"}]
 
-            if blocks:
-                for block in blocks:
-                    btype = block.get("type")
-                    value = block.get("content", "")
-                    label = block.get("label", "")
+                if blocks:
+                    for block in blocks:
+                        try:
+                            btype = block.get("type", "text")
+                            value = str(block.get("content", ""))  # Always convert to string
+                            label = str(block.get("label", ""))   # Always convert to string
 
-                    if btype == "text":
-                        text_label = QLabel(value)
-                        text_label.setFont(QFont("Inter", 13))
-                        text_label.setWordWrap(True)
-                        text_label.setStyleSheet(f"color: {TEXT_COLOR};")
-                        layout.addWidget(text_label)
+                            if btype == "text":
+                                # ENHANCED: Auto-detect URLs in text and make them copyable
+                                if self._contains_url(value):
+                                    self._create_text_with_links(value, layout)
+                                else:
+                                    text_label = QLabel(value)
+                                    text_label.setFont(QFont("Inter", 13))
+                                    text_label.setWordWrap(True)
+                                    text_label.setStyleSheet(f"color: {TEXT_COLOR};")
+                                    layout.addWidget(text_label)
 
-                    elif btype == "link":
-                        link_frame = QFrame()
-                        link_frame.setStyleSheet(f"""
-                            QFrame {{
-                                background-color: {LIGHT_GRAY};
-                                border: 1px solid {BORDER_COLOR};
-                                border-radius: 5px;
-                                padding: 6px;
-                            }}
-                        """)
-                        hbox = QHBoxLayout(link_frame)
-                        link_label = QLabel(label or value)
-                        link_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-                        hbox.addWidget(link_label)
-                        copy_btn = QPushButton("Copy")
-                        copy_btn.clicked.connect(lambda _, v=value: QApplication.clipboard().setText(v))
-                        hbox.addWidget(copy_btn)
-                        layout.addWidget(link_frame)
+                            elif btype == "link":
+                                link_frame = QFrame()
+                                link_frame.setStyleSheet(f"""
+                                    QFrame {{
+                                        background-color: {LIGHT_GRAY};
+                                        border: 1px solid {BORDER_COLOR};
+                                        border-radius: 5px;
+                                        padding: 6px;
+                                    }}
+                                """)
+                                hbox = QHBoxLayout(link_frame)
+                                link_label = QLabel(label or value)
+                                link_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                                link_label.setStyleSheet(f"color: {TEXT_COLOR};")
+                                hbox.addWidget(link_label)
+                                copy_btn = QPushButton("Copy")
+                                copy_btn.clicked.connect(lambda _, v=value: QApplication.clipboard().setText(v))
+                                hbox.addWidget(copy_btn)
+                                layout.addWidget(link_frame)
 
-                    elif btype == "code":
-                        self.create_code_block(value, layout)
-            else:
-                # Fallback to legacy format
-                instruction = content.get('instruction', '')
-                format_type = content.get('format', 'text')
-                if format_type == 'code':
-                    self.create_code_block(instruction, layout)
+                            elif btype == "code":
+                                self.create_code_block(value, layout)
+                        except Exception as block_error:
+                            print(f"Error processing block: {block_error}")
+                            # Add error block as fallback
+                            error_label = QLabel(f"Error displaying block: {str(block_error)}")
+                            error_label.setStyleSheet(f"color: {BUTTON_RED};")
+                            layout.addWidget(error_label)
                 else:
-                    self.create_text_block(instruction, layout, is_current)
+                    # Fallback to legacy format
+                    instruction = content.get('instruction', '')
+                    # Always ensure instruction is a string
+                    if isinstance(instruction, list):
+                        instruction = str(instruction)
+                    elif not isinstance(instruction, str):
+                        instruction = str(instruction)
+                        
+                    format_type = content.get('format', 'text')
+                    if format_type == 'code':
+                        self.create_code_block(instruction, layout)
+                    else:
+                        # ENHANCED: Handle URLs in legacy text format too
+                        if self._contains_url(instruction):
+                            self._create_text_with_links(instruction, layout)
+                        else:
+                            self.create_text_block(instruction, layout, is_current)
 
-            if explanation:
-                self.add_explanation(explanation, layout)
+                if explanation:
+                    self.add_explanation(str(explanation), layout)  # Ensure explanation is string
+                    
+            else:
+                # Handle non-dict content - ENHANCED URL handling
+                content_str = str(content) if content is not None else "No content"
+                if self._contains_url(content_str):
+                    self._create_text_with_links(content_str, layout)
+                else:
+                    self.create_text_block(content_str, layout, is_current)
 
-            
-        else:
-            self.create_text_block(content, layout, is_current)
+        except Exception as e:
+            print(f"Critical error in AnimatedStep: {e}")
+            # Emergency fallback - create a simple error message
+            error_label = QLabel(f"Error displaying step: {str(e)}")
+            error_label.setStyleSheet(f"color: {BUTTON_RED};")
+            layout.addWidget(error_label)
 
         if is_current:
             self.animate_entrance()
 
     def create_text_block(self, text, layout, animate=False):
         """Create a regular text display with optional typewriter effect"""
+        # CRITICAL: Ensure text is always a string - ROBUST CONVERSION
+        try:
+            if text is None:
+                text = "No content provided"
+            elif isinstance(text, list):
+                # If it's a list, try to extract meaningful content
+                if len(text) == 0:
+                    text = "No content provided"
+                elif len(text) == 1:
+                    # Single item - convert to string
+                    text = str(text[0])
+                else:
+                    # Multiple items - join them or take first meaningful one
+                    text_items = []
+                    for item in text:
+                        if isinstance(item, dict) and 'content' in item:
+                            text_items.append(str(item['content']))
+                        else:
+                            text_items.append(str(item))
+                    text = '\n'.join(text_items) if text_items else "Multiple items provided"
+            elif isinstance(text, dict):
+                # If it's a dict, try to extract content
+                if 'content' in text:
+                    text = str(text['content'])
+                elif 'instruction' in text:
+                    text = str(text['instruction'])
+                else:
+                    text = str(text)
+            elif not isinstance(text, str):
+                # Any other type - convert to string
+                text = str(text)
+                
+            # Final safety check
+            if not text or not text.strip():
+                text = "No content provided"
+                
+        except Exception as e:
+            print(f"Error converting text in create_text_block: {e}")
+            text = f"Error processing content: {str(e)}"
+            
         if animate:
             # Animated text with typewriter effect
             text_label = TypewriterLabel()
@@ -461,6 +563,40 @@ class AnimatedStep(QFrame):
 
     def create_code_block(self, code, layout):
         """Create a code block display with syntax highlighting and language label"""
+        # CRITICAL: Ensure code is always a string - ROBUST CONVERSION
+        try:
+            if code is None:
+                code = "# No code provided"
+            elif isinstance(code, list):
+                # If it's a list, join the items or extract meaningful content
+                if len(code) == 0:
+                    code = "# No code provided"
+                else:
+                    code_items = []
+                    for item in code:
+                        if isinstance(item, dict) and 'content' in item:
+                            code_items.append(str(item['content']))
+                        else:
+                            code_items.append(str(item))
+                    code = '\n'.join(code_items) if code_items else "# No code provided"
+            elif isinstance(code, dict):
+                # If it's a dict, try to extract content
+                if 'content' in code:
+                    code = str(code['content'])
+                else:
+                    code = str(code)
+            elif not isinstance(code, str):
+                # Any other type - convert to string
+                code = str(code)
+                
+            # Final safety check
+            if not code or not code.strip():
+                code = "# No code provided"
+                
+        except Exception as e:
+            print(f"Error converting code in create_code_block: {e}")
+            code = f"# Error processing code: {str(e)}"
+
         # Determine code language
         language = self.detect_code_language(code)
 
@@ -547,6 +683,40 @@ class AnimatedStep(QFrame):
 
     def add_explanation(self, explanation_text, layout):
         """Add an explanation block to the step"""
+        # CRITICAL: Ensure explanation_text is always a string - ROBUST CONVERSION
+        try:
+            if explanation_text is None:
+                explanation_text = "No explanation provided"
+            elif isinstance(explanation_text, list):
+                # If it's a list, join the items or extract meaningful content
+                if len(explanation_text) == 0:
+                    explanation_text = "No explanation provided"
+                else:
+                    exp_items = []
+                    for item in explanation_text:
+                        if isinstance(item, dict) and 'content' in item:
+                            exp_items.append(str(item['content']))
+                        else:
+                            exp_items.append(str(item))
+                    explanation_text = '\n'.join(exp_items) if exp_items else "No explanation provided"
+            elif isinstance(explanation_text, dict):
+                # If it's a dict, try to extract content
+                if 'content' in explanation_text:
+                    explanation_text = str(explanation_text['content'])
+                else:
+                    explanation_text = str(explanation_text)
+            elif not isinstance(explanation_text, str):
+                # Any other type - convert to string
+                explanation_text = str(explanation_text)
+                
+            # Final safety check
+            if not explanation_text or not explanation_text.strip():
+                explanation_text = "No explanation provided"
+                
+        except Exception as e:
+            print(f"Error converting explanation in add_explanation: {e}")
+            explanation_text = f"Error processing explanation: {str(e)}"
+            
         explanation_frame = QFrame()
         explanation_frame.setStyleSheet(f"""
             QFrame {{
@@ -563,14 +733,14 @@ class AnimatedStep(QFrame):
         # Header
         header = QLabel("Why this step matters:")
         header.setFont(QFont("Inter", 11, QFont.Weight.Bold))
-        header.setStyleSheet("color: #92400e;")
+        header.setStyleSheet(f"color: {ACCENT_COLOR};")
         explanation_layout.addWidget(header)
 
         # Explanation text
         explanation = QLabel(explanation_text)
         explanation.setFont(QFont("Inter", 11))
         explanation.setWordWrap(True)
-        explanation.setStyleSheet("color: #78350f;")
+        explanation.setStyleSheet(f"color: {TEXT_COLOR};")
         explanation_layout.addWidget(explanation)
 
         layout.addWidget(explanation_frame)
@@ -614,6 +784,74 @@ class AnimatedStep(QFrame):
         sender.setText("Copied!")
         QTimer.singleShot(1500, lambda: sender.setText(original_text))
 
+    def _contains_url(self, text: str) -> bool:
+        """Check if text contains URLs"""
+        import re
+        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+        return bool(re.search(url_pattern, text))
+    
+    def _create_text_with_links(self, text: str, layout):
+        """Create text with auto-detected URLs as copyable links"""
+        import re
+        
+        # Pattern to detect URLs
+        url_pattern = r'(https?://[^\s<>"{}|\\^`\[\]]+)'
+        
+        # Split text by URLs
+        parts = re.split(url_pattern, text)
+        
+        for part in parts:
+            if re.match(url_pattern, part):
+                # This is a URL - make it copyable
+                link_frame = QFrame()
+                link_frame.setStyleSheet(f"""
+                    QFrame {{
+                        background-color: {LIGHT_GRAY};
+                        border: 1px solid {BORDER_COLOR};
+                        border-radius: 5px;
+                        padding: 6px;
+                        margin: 2px 0px;
+                    }}
+                """)
+                hbox = QHBoxLayout(link_frame)
+                hbox.setContentsMargins(8, 4, 8, 4)
+                
+                # URL label (shortened for display)
+                display_url = part if len(part) <= 50 else part[:47] + "..."
+                link_label = QLabel(display_url)
+                link_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                link_label.setStyleSheet(f"color: {ACCENT_COLOR}; font-family: monospace;")
+                link_label.setFont(QFont("Courier New", 11))
+                hbox.addWidget(link_label)
+                
+                hbox.addStretch()  # Push copy button to the right
+                
+                copy_btn = QPushButton("Copy")
+                copy_btn.setFixedSize(60, 24)
+                copy_btn.setFont(QFont("Inter", 9))
+                copy_btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {ACCENT_COLOR};
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        padding: 2px 6px;
+                    }}
+                    QPushButton:hover {{
+                        background-color: #FF5722;
+                    }}
+                """)
+                copy_btn.clicked.connect(lambda _, url=part: QApplication.clipboard().setText(url))
+                hbox.addWidget(copy_btn)
+                
+                layout.addWidget(link_frame)
+            elif part.strip():  # Non-URL text (ignore empty parts)
+                text_label = QLabel(part)
+                text_label.setFont(QFont("Inter", 13))
+                text_label.setWordWrap(True)
+                text_label.setStyleSheet(f"color: {TEXT_COLOR};")
+                layout.addWidget(text_label)
+
     def animate_entrance(self):
         """Animate the step entrance with a fade-in effect"""
         # Create opacity effect
@@ -639,7 +877,11 @@ class ChatDialog(QDialog):
         self.parent_widget = parent
         self.setWindowTitle("Chat with Assistant")
         self.setMinimumSize(500, 600)  # Slightly larger dialog for better readability
-        self.setStyleSheet(f"background-color: {PRIMARY_COLOR};")
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {PRIMARY_COLOR};
+            }}
+        """)
 
         # Knowledge retriever settings - with reasonable defaults
         self.use_query_enhancement = True
@@ -669,13 +911,13 @@ class ChatDialog(QDialog):
                 color: {TEXT_COLOR};
             }}
             QScrollBar:vertical {{
-                background: #f1f5f9;
+                background: {LIGHT_GRAY};
                 width: 12px;
                 margin: 0px;
                 border-radius: 6px;
             }}
             QScrollBar::handle:vertical {{
-                background: #3b82f6;
+                background: {ACCENT_COLOR};
                 min-height: 30px;
                 border-radius: 6px;
             }}
@@ -683,7 +925,7 @@ class ChatDialog(QDialog):
                 height: 0px;
             }}
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
-                background: #e2e8f0;
+                background: {BORDER_COLOR};
                 border-radius: 6px;
             }}
         """)
@@ -695,7 +937,7 @@ class ChatDialog(QDialog):
             QFrame {{
                 border: 1px solid {BORDER_COLOR};
                 border-radius: 6px;
-                background-color: {PRIMARY_COLOR};
+                background-color: rgba(45, 45, 45, 0.6);
                 padding: 10px;
             }}
         """)
@@ -715,6 +957,7 @@ class ChatDialog(QDialog):
             QCheckBox {{
                 spacing: 8px;
                 font-size: 13px;
+                color: {TEXT_COLOR};
             }}
             QCheckBox::indicator {{
                 width: 18px;
@@ -723,12 +966,11 @@ class ChatDialog(QDialog):
                 border: 1px solid {BORDER_COLOR};
             }}
             QCheckBox::indicator:unchecked {{
-                background-color: white;
+                background-color: rgba(45, 45, 45, 0.8);
             }}
             QCheckBox::indicator:checked {{
                 background-color: {ACCENT_COLOR};
                 border: 1px solid {ACCENT_COLOR};
-                image: url({os.path.join(ICON_DIR, "check.png")});
             }}
             QCheckBox::indicator:hover {{
                 border: 1px solid {ACCENT_COLOR};
@@ -789,11 +1031,14 @@ class ChatDialog(QDialog):
                 border: 1px solid {BORDER_COLOR};
                 border-radius: 6px;
                 padding: 10px 15px;
-                background-color: {PRIMARY_COLOR};
-
+                background-color: rgba(45, 45, 45, 0.6);
+                color: {TEXT_COLOR};
             }}
             QLineEdit:focus {{
                 border: 1px solid {ACCENT_COLOR};
+            }}
+            QLineEdit::placeholder {{
+                color: {SECONDARY_TEXT};
             }}
         """)
         self.message_input.returnPressed.connect(self.send_message)
@@ -820,7 +1065,7 @@ class ChatDialog(QDialog):
                 padding: 10px 20px;
             }}
             QPushButton:hover {{
-                background-color: #808080;
+                background-color: #FF5722;
             }}
             QPushButton:disabled {{
                 background-color: {DISABLED_COLOR};
@@ -836,14 +1081,14 @@ class ChatDialog(QDialog):
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {LIGHT_GRAY};
+                background-color: rgba(45, 45, 45, 0.8);
                 color: {TEXT_COLOR};
                 border: 1px solid {BORDER_COLOR};
                 border-radius: 6px;
                 padding: 10px 20px;
             }}
             QPushButton:hover {{
-                background-color: #808080;
+                background-color: {LIGHT_GRAY};
             }}
         """)
         self.close_btn.clicked.connect(self.close_chat)
@@ -851,35 +1096,12 @@ class ChatDialog(QDialog):
 
         layout.addLayout(button_row)
 
-        # Try to load a check icon for the checkboxes
-        try:
-            # Create icons directory if it doesn't exist
-            if not os.path.exists(ICON_DIR):
-                os.makedirs(ICON_DIR)
-
-            # Create a simple check icon if it doesn't exist
-            check_icon_path = os.path.join(ICON_DIR, "check.png")
-            if not os.path.exists(check_icon_path):
-                # Create a simple check mark using QPainter
-                pixmap = QPixmap(18, 18)
-                pixmap.fill(Qt.GlobalColor.transparent)
-                painter = QPainter(pixmap)
-                painter.setPen(QPen(Qt.GlobalColor.white, 2))
-                painter.drawLine(4, 9, 8, 13)
-                painter.drawLine(8, 13, 14, 5)
-                painter.end()
-                pixmap.save(check_icon_path)
-                print(f"Created check icon at: {check_icon_path}")
-        except Exception as e:
-            print(f"Error creating check icon: {e}")
-
         # Add initial welcome message
-            # Add initial welcome message
-            self.add_assistant_message("I'm here to help with your training session. What can I assist you with?")
+        self.add_assistant_message("I'm here to help with your training session. What can I assist you with?")
 
-            # Display a system message explaining the functionality
-            self.add_system_message(
-                "This assistant is connected to your course materials. Ask questions about what you're learning!")
+        # Display a system message explaining the functionality
+        self.add_system_message(
+            "This assistant is connected to your course materials. Ask questions about what you're learning!")
 
     def update_settings(self):
         """Update retriever settings based on toggle states"""
@@ -912,10 +1134,10 @@ class ChatDialog(QDialog):
         """Add a user message to the chat history with improved styling"""
         # Add user message with enhanced styling and more distinct background
         self.chat_history.append(
-            f'<div style="background-color: #eff6ff; padding: 12px 15px; border-radius: 8px; '
+            f'<div style="background-color: rgba(45, 45, 45, 0.8); padding: 12px 15px; border-radius: 8px; '
             f'border-left: 4px solid {ACCENT_COLOR}; margin: 10px 0;">'
             f'<div style="font-weight: bold; color: {TEXT_COLOR}; margin-bottom: 8px; font-size: 13px;">You:</div>'
-            f'<div style="margin: 5px 0; font-size: 13px;">{message}</div>'
+            f'<div style="margin: 5px 0; font-size: 13px; color: {TEXT_COLOR};">{message}</div>'
             f'</div>'
         )
 
@@ -930,7 +1152,7 @@ class ChatDialog(QDialog):
         """Add a thinking indicator while waiting for response"""
         # Create the HTML for the thinking indicator
         self.thinking_html = (
-            f'<div id="thinking_indicator" style="background-color: #f8fafc; padding: 12px 15px; '
+            f'<div id="thinking_indicator" style="background-color: rgba(30, 30, 30, 0.8); padding: 12px 15px; '
             f'border-radius: 8px; border-left: 4px solid #9ca3af; margin: 10px 0;">'
             f'<div style="font-weight: bold; color: {ACCENT_COLOR}; margin-bottom: 8px; font-size: 13px;">Assistant:</div>'
             f'<div style="margin: 5px 0; color: {ACCENT_COLOR}; font-style: italic;">Assistant is thinking...</div>'
@@ -963,7 +1185,7 @@ class ChatDialog(QDialog):
 
         current_html = self.chat_history.toHtml()
         updated_html = current_html.replace(
-            '<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: #2563eb;">•••</div>',
+            f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR};">•••</div>',
             dot_html)
         updated_html = updated_html.replace(
             f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR};">{dot_patterns[(self.thinking_dots - 1) % len(dot_patterns)]}</div>',
@@ -989,7 +1211,7 @@ class ChatDialog(QDialog):
             # Also try to remove it if the dots have been animated
             for dots in ["•  ", "•• ", "•••", " ••", "  •", "   "]:
                 indicator_with_dots = self.thinking_html.replace(
-                    '<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: #2563eb;">•••</div>',
+                    f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR};">•••</div>',
                     f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR};">{dots}</div>')
                 updated_html = updated_html.replace(indicator_with_dots, '')
 
@@ -1007,10 +1229,10 @@ class ChatDialog(QDialog):
 
         # Add assistant message with enhanced styling
         self.chat_history.append(
-            f'<div style="background-color: #f0f9ff; padding: 12px 15px; border-radius: 8px; '
-            f'border-left: 4px solid #10b981; margin: 10px 0;">'
+            f'<div style="background-color: rgba(16, 185, 129, 0.15); padding: 12px 15px; border-radius: 8px; '
+            f'border-left: 4px solid {SECONDARY_COLOR}; margin: 10px 0;">'
             f'<div style="font-weight: bold; color: {ACCENT_COLOR}; margin-bottom: 8px; font-size: 13px;">Assistant:</div>'
-            f'<div style="margin: 5px 0; font-size: 13px;">{formatted_message}</div>'
+            f'<div style="margin: 5px 0; font-size: 13px; color: {TEXT_COLOR};">{formatted_message}</div>'
             f'</div>'
         )
 
@@ -1132,9 +1354,9 @@ class ChatDialog(QDialog):
     def add_system_message(self, message):
         """Add a system message to the chat history with improved styling"""
         self.chat_history.append(
-            f'<div style="background-color: #f1f5f9; padding: 5px 10px; border-radius: 4px; '
-            f'margin: 5px 0; border-left: 2px solid #64748b;">'
-            f'<span style="font-style: italic; color: #64748b;">System: {message}</span>'
+            f'<div style="background-color: rgba(85, 85, 85, 0.5); padding: 5px 10px; border-radius: 4px; '
+            f'margin: 5px 0; border-left: 2px solid {SECONDARY_TEXT};">'
+            f'<span style="font-style: italic; color: {SECONDARY_TEXT};">System: {message}</span>'
             f'</div>'
         )
 
@@ -1145,14 +1367,14 @@ class ChatDialog(QDialog):
         """Add sources information to the chat history with improved styling"""
         if sources and len(sources) > 0:
             sources_html = (
-                f'<div style="background-color: #fffbeb; padding: 8px 12px; border-radius: 6px; '
-                f'border-left: 3px solid #eab308; margin: 5px 0;">'
-                f'<div style="font-weight: bold; color: #854d0e;">Sources:</div>'
+                f'<div style="background-color: rgba(255, 59, 48, 0.15); padding: 8px 12px; border-radius: 6px; '
+                f'border-left: 3px solid {ACCENT_COLOR}; margin: 5px 0;">'
+                f'<div style="font-weight: bold; color: {ACCENT_COLOR};">Sources:</div>'
                 f'<ul style="margin: 5px 0 5px 20px; padding: 0;">'
             )
 
             for source in sources:
-                sources_html += f'<li style="margin-bottom: 3px;">{source}</li>'
+                sources_html += f'<li style="margin-bottom: 3px; color: {TEXT_COLOR};">{source}</li>'
 
             sources_html += '</ul></div>'
 
@@ -1325,133 +1547,147 @@ class ChatDialog(QDialog):
 
         self.hide()  # Hide instead of closing to maintain instance
 
-class LoginScreen(QWidget):
-    """The login screen for the LearnChain Tutor app with fixed logo display"""
 
+class LoginScreen(QWidget):
+    """The login screen for the LearnChain Tutor app with modern dark theme"""
 
     def __init__(self, stacked_widget):
         super().__init__()
         self.stacked_widget = stacked_widget
-        self.setStyleSheet(f"background-color: {PRIMARY_COLOR};")
         self.init_ui()
 
     def init_ui(self):
+        # Main container with dark background gradient
+        self.setStyleSheet(f"""
+            QWidget {{
+                background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+                                          stop: 0 {PRIMARY_COLOR},
+                                          stop: 1 #0F0F0F);
+            }}
+        """)
+        
         layout = QVBoxLayout()
         layout.setContentsMargins(50, 80, 50, 80)
-        layout.setSpacing(20)
+        layout.setSpacing(30)
 
-        # App logo - modified for more reliable loading
-        logo_label = QLabel()
+        # Center everything in a glass card
+        card = QFrame()
+        card.setObjectName("glassCard")
+        card.setStyleSheet(f"""
+            #glassCard {{
+                background: {CARD_BACKGROUND};
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px;
+                padding: 40px;
+            }}
+        """)
+        
+        card_layout = QVBoxLayout(card)
+        card_layout.setSpacing(25)
+
+        # App logo with accent color - FIXED FORMATTING
+        logo_label = QLabel("LearnChain")
+        logo_label.setFont(QFont("Inter", 32, QFont.Weight.Bold))
+        logo_label.setStyleSheet(f"color: {ACCENT_COLOR}; margin: 0px; padding: 0px;")
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        card_layout.addWidget(logo_label)
 
-        # Explicitly create a default logo text as fallback
-        logo_label.setText("LearnChain")
-        logo_label.setFont(QFont("Inter", 24, QFont.Weight.Bold))
-        logo_label.setStyleSheet(f"color: {ACCENT_COLOR};")
-
-        # Try to load the logo image if it exists
-        try:
-            logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
-            if os.path.exists(logo_path) and os.path.isfile(logo_path):
-                pixmap = QPixmap(logo_path)
-                if not pixmap.isNull():
-                    # Successfully loaded the image
-                    logo_label.setText("")  # Clear the text
-                    logo_label.setPixmap(pixmap.scaledToWidth(150, Qt.TransformationMode.SmoothTransformation))
-                    print(f"Logo loaded from: {logo_path}")
-                else:
-                    print(f"Failed to load logo: {logo_path} (image is null)")
-            else:
-                print(f"Logo file not found at: {logo_path}")
-        except Exception as e:
-            print(f"Error loading logo: {str(e)}")
-
-        layout.addWidget(logo_label)
-
-        # Title with app name
+        # Title with white text - FIXED FORMATTING
         title = QLabel("Training Wheels")
-        title.setFont(QFont("Inter", 14, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {TEXT_COLOR};")
+        title.setFont(QFont("Inter", 18, QFont.Weight.Normal))
+        title.setStyleSheet(f"color: {TEXT_COLOR}; margin: 0px; padding: 0px;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        card_layout.addWidget(title)
 
-        # Login instruction text
+        # Instruction text - FIXED FORMATTING
         instruction = QLabel("Please enter your credentials to continue")
-        instruction.setFont(QFont("Inter", 12))
-        instruction.setStyleSheet(f"color: {GRAY_TEXT};")
+        instruction.setFont(QFont("Inter", 14))
+        instruction.setStyleSheet(f"color: {SECONDARY_TEXT}; margin: 0px; padding: 0px;")
         instruction.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(instruction)
+        card_layout.addWidget(instruction)
 
-        # Add spacer
-        layout.addItem(QSpacerItem(20, 20))
-
-        # User input field
+        # User input field with glass styling
         self.user_input = QLineEdit()
         self.user_input.setPlaceholderText("Enter your User ID")
-        self.user_input.setFixedHeight(50)
-        self.user_input.setFont(QFont("Inter", 12))
+        self.user_input.setFixedHeight(55)
+        self.user_input.setFont(QFont("Inter", 14))
         self.user_input.setStyleSheet(f"""
-                QLineEdit {{
-                    border: 1px solid {BORDER_COLOR};
-                    border-radius: 8px;
-                    padding: 12px 15px;
-                    background-color: {LIGHT_GRAY};
-                }}
-                QLineEdit:focus {{
-                    border: 1px solid {ACCENT_COLOR};
-                }}
-            """)
-        layout.addWidget(self.user_input)
-
-        # Small spacing
-        layout.addItem(QSpacerItem(10, 10))
+            QLineEdit {{
+                background: rgba(45, 45, 45, 0.6);
+                border: 2px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 15px 20px;
+                color: {TEXT_COLOR};
+                font-size: 14px;
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {ACCENT_COLOR};
+                background: rgba(45, 45, 45, 0.8);
+            }}
+            QLineEdit::placeholder {{
+                color: {SECONDARY_TEXT};
+            }}
+        """)
+        card_layout.addWidget(self.user_input)
 
         # Course ID input field
         self.course_input = QLineEdit()
         self.course_input.setPlaceholderText("Enter your Course ID")
-        self.course_input.setFixedHeight(50)
-        self.course_input.setFont(QFont("Inter", 12))
+        self.course_input.setFixedHeight(55)
+        self.course_input.setFont(QFont("Inter", 14))
         self.course_input.setStyleSheet(f"""
-                QLineEdit {{
-                    border: 1px solid {BORDER_COLOR};
-                    border-radius: 8px;
-                    padding: 12px 15px;
-                    background-color: {LIGHT_GRAY};
-                }}
-                QLineEdit:focus {{
-                    border: 1px solid {ACCENT_COLOR};
-                }}
-            """)
-        layout.addWidget(self.course_input)
+            QLineEdit {{
+                background: rgba(45, 45, 45, 0.6);
+                border: 2px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 15px 20px;
+                color: {TEXT_COLOR};
+                font-size: 14px;
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {ACCENT_COLOR};
+                background: rgba(45, 45, 45, 0.8);
+            }}
+            QLineEdit::placeholder {{
+                color: {SECONDARY_TEXT};
+            }}
+        """)
+        card_layout.addWidget(self.course_input)
 
-        # Small spacing
-        layout.addItem(QSpacerItem(20, 20))
-
-        # Login button
+        # Login button with accent color and glass effect - REMOVED CSS TRANSFORM
         login_btn = QPushButton("Login")
-        login_btn.setFont(QFont("Inter", 13, QFont.Weight.Bold))
-        login_btn.setFixedHeight(50)
+        login_btn.setFont(QFont("Inter", 16, QFont.Weight.Bold))
+        login_btn.setFixedHeight(55)
         login_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         login_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {ACCENT_COLOR};
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                }}
-                QPushButton:hover {{
-                    background-color: #808080;
-                }}
-                QPushButton:pressed {{
-                    background-color: #1e3a8a;
-                }}
-            """)
+            QPushButton {{
+                background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+                                          stop: 0 {ACCENT_COLOR},
+                                          stop: 1 #FF6B5A);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-weight: bold;
+                margin-top: 10px;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+                                          stop: 0 #FF5722,
+                                          stop: 1 #FF8A65);
+            }}
+            QPushButton:pressed {{
+                background: #E53E3E;
+            }}
+        """)
         login_btn.clicked.connect(self.handle_login)
-        layout.addWidget(login_btn)
+        card_layout.addWidget(login_btn)
 
-        # Add stretching space at the bottom
+        # Add the card to main layout
+        layout.addWidget(card)
+        
+        # Add stretching space
         layout.addStretch()
-
+        
         self.setLayout(layout)
 
     def handle_login(self):
@@ -1469,11 +1705,9 @@ class LoginScreen(QWidget):
             self.stacked_widget.main_screen.set_user(user_id)
             self.stacked_widget.setCurrentIndex(1)
 
-    # COMPLETE CLASSES THAT NEED MODIFICATION
 
 class GoalDisplay(QWidget):
-    """Completely redesigned Goal display with guaranteed visible header text"""
-
+    """Goal display with modern dark theme"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1482,56 +1716,55 @@ class GoalDisplay(QWidget):
         self.setAutoFillBackground(False)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet("""
-                background-color: transparent;
-                border: none;
-            """)
+            background-color: transparent;
+            border: none;
+        """)
 
         # Main layout with zero margins to maximize space
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Header section - explicit foreground and background colors
+        # Header section
         self.header_label = QLabel("Goal")
         self.header_label.setFixedHeight(40)
         self.header_label.setFont(QFont("Inter", 11, QFont.Weight.Bold))
-        # CRITICAL: Setting text alignment, padding, and colors explicitly
         self.header_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.header_label.setIndent(20)  # Left padding for text
+        self.header_label.setIndent(20)
         self.header_label.setStyleSheet(f"""
-                background-color: {ACCENT_COLOR};
-                color: white;
-                padding-left: 10px;
-                border-top-left-radius: 8px;
-                border-top-right-radius: 8px;
-            """)
+            background-color: {ACCENT_COLOR};
+            color: white;
+            padding-left: 10px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        """)
         main_layout.addWidget(self.header_label)
 
-        # Content frame with light background and border
+        # Content frame with glass effect
         self.content_frame = QFrame()
         self.content_frame.setMinimumHeight(60)
         self.content_frame.setStyleSheet(f"""
-                background-color: #f0f9ff;
-                border: 1px solid #e0e7ff;
-                border-top: none;
-                border-bottom-left-radius: 8px;
-                border-bottom-right-radius: 8px;
-            """)
+            background-color: rgba(45, 45, 45, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        """)
 
         content_layout = QVBoxLayout(self.content_frame)
         content_layout.setContentsMargins(20, 15, 20, 15)
 
-        # Goal text with explicit font and alignment
+        # Goal text
         self.content = QLabel()
         self.content.setWordWrap(True)
         self.content.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.content.setFont(QFont("Inter", 16, QFont.Weight.Bold))
         self.content.setStyleSheet(f"""
-                color: {TEXT_COLOR}; 
-                padding-left: 5px;
-                padding-top: 5px;
-                padding-bottom: 5px;
-            """)
+            color: {TEXT_COLOR}; 
+            padding-left: 5px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+        """)
 
         content_layout.addWidget(self.content)
         main_layout.addWidget(self.content_frame)
@@ -1539,11 +1772,11 @@ class GoalDisplay(QWidget):
     def set_goal(self, text):
         """Set goal text"""
         self.content.setText(text)
-        # Force layout update
         self.content.adjustSize()
 
+
 class ToggleSwitch(QWidget):
-    """Custom toggle switch widget for explanation mode"""
+    """Custom toggle switch widget with modern styling"""
 
     toggled = pyqtSignal(bool)
 
@@ -1555,29 +1788,28 @@ class ToggleSwitch(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        # Create switch track and handle
+        # Create switch track with updated colors
         self.track = QFrame(self)
-        self.track.setFixedSize(44, 22)
+        self.track.setFixedSize(50, 26)
         self.track.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {DISABLED_COLOR};
-                    border-radius: 11px;
-                }}
-            """)
+            QFrame {{
+                background-color: rgba(85, 85, 85, 0.8);
+                border-radius: 13px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }}
+        """)
 
-        # Create handle (the circle that moves)
+        # Create handle with updated styling
         self.handle = QFrame(self.track)
-        self.handle.setFixedSize(18, 18)
-        self.handle.move(2, 2)  # Position at left side initially
+        self.handle.setFixedSize(22, 22)
+        self.handle.move(2, 2)
         self.handle.setStyleSheet(f"""
-                QFrame {{
-                    background-color: white;
-                    border-radius: 9px;
-                }}
-            """)
-
-        # Add label if provided
-
+            QFrame {{
+                background-color: white;
+                border-radius: 11px;
+                border: none;
+            }}
+        """)
 
         layout.addWidget(self.track)
 
@@ -1586,12 +1818,12 @@ class ToggleSwitch(QWidget):
 
         # Make clickable
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(24)
+        self.setFixedHeight(26)
 
         # Animation for handle
         self.animation = QPropertyAnimation(self.handle, b"pos")
-        self.animation.setDuration(150)
-        self.animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.animation.setDuration(200)
+        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
     def mousePressEvent(self, event):
         """Handle mouse click to toggle switch"""
@@ -1599,7 +1831,7 @@ class ToggleSwitch(QWidget):
             self.toggle()
 
     def toggle(self):
-        """Toggle the switch state"""
+        """Toggle the switch state with updated styling"""
         self.is_checked = not self.is_checked
 
         # Animate handle position
@@ -1607,20 +1839,22 @@ class ToggleSwitch(QWidget):
             self.animation.setStartValue(self.handle.pos())
             self.animation.setEndValue(QPoint(self.track.width() - self.handle.width() - 2, 2))
             self.track.setStyleSheet(f"""
-                    QFrame {{
-                        background-color: {ACCENT_COLOR};
-                        border-radius: 11px;
-                    }}
-                """)
+                QFrame {{
+                    background-color: {ACCENT_COLOR};
+                    border-radius: 13px;
+                    border: 1px solid {ACCENT_COLOR};
+                }}
+            """)
         else:
             self.animation.setStartValue(self.handle.pos())
             self.animation.setEndValue(QPoint(2, 2))
             self.track.setStyleSheet(f"""
-                    QFrame {{
-                        background-color: {DISABLED_COLOR};
-                        border-radius: 11px;
-                    }}
-                """)
+                QFrame {{
+                    background-color: rgba(85, 85, 85, 0.8);
+                    border-radius: 13px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }}
+            """)
 
         self.animation.start()
 
@@ -1633,24 +1867,27 @@ class ToggleSwitch(QWidget):
             self.toggle()
         elif checked:  # Update styling if already in the correct state
             self.track.setStyleSheet(f"""
-                    QFrame {{
-                        background-color: {ACCENT_COLOR};
-                        border-radius: 11px;
-                    }}
-                """)
+                QFrame {{
+                    background-color: {ACCENT_COLOR};
+                    border-radius: 13px;
+                    border: 1px solid {ACCENT_COLOR};
+                }}
+            """)
             self.handle.move(self.track.width() - self.handle.width() - 2, 2)
         else:
             self.track.setStyleSheet(f"""
-                    QFrame {{
-                        background-color: {DISABLED_COLOR};
-                        border-radius: 11px;
-                    }}
-                """)
+                QFrame {{
+                    background-color: rgba(85, 85, 85, 0.8);
+                    border-radius: 13px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }}
+            """)
             self.handle.move(2, 2)
 
     def isChecked(self):
         """Get the current state"""
         return self.is_checked
+
 
 class MainScreen(QWidget):
     """The main screen showing the active tutor session"""
@@ -1659,40 +1896,56 @@ class MainScreen(QWidget):
     def __init__(self, width=300, height=600):
         super().__init__()
         self.user_id = None
-        self.course_id = None  # Added to store course ID
+        self.course_id = None
         self.goal = None
         self.step_index = 1
         self.steps = []
         self.is_session_active = False
         self.is_session_paused = False
-        self.explanation_mode = False  # Track if explanation mode is enabled
-        
+        self.explanation_mode = False
+        self.is_online = False  # Initialize as offline
 
         # Create chat dialog
         self.chat_dialog = ChatDialog(self)
 
         self.setMinimumSize(width, height)
         self.setStyleSheet(f"""
-             QWidget {{
-                 background-color: {PRIMARY_COLOR};
-             }}
-         """)
-        #icon_path = str(resource_path("training_wheels/assets/icon.ico"))
+            QWidget {{
+                background-color: {PRIMARY_COLOR};
+            }}
+        """)
+        
         icon_path = str(resource_path("assets/icon.ico"))
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         self.init_ui()
+        
+        # Check S3 connection to set online status
+        self.check_s3_connection()
+        
+        # Update the online status display
+        QTimer.singleShot(100, self.update_online_status)  # Small delay to ensure UI is ready
+        
         try:
             import retriever
             logger.info("🚀 Starting preemptive initialization on app startup...")
-            ready = retriever.wait_for_full_initialization(timeout=2.0)  # Non-blocking check
+            ready = retriever.wait_for_full_initialization(timeout=2.0)
             if ready:
                 logger.info("✅ Preemptive initialization complete!")
             else:
                 logger.info("⏳ Preemptive initialization in progress...")
         except Exception as e:
             logger.error(f"❌ Preemptive initialization error: {e}")
-        
+
+    def check_s3_connection(self):
+        """Check S3 connection and update online status"""
+        try:
+            import training_wheels as tw
+            result = tw.test_s3_connection()
+            self.is_online = result.get("connected", False)
+        except Exception as e:
+            logger.error(f"Error checking S3 connection: {e}")
+            self.is_online = False
 
     def init_ui(self):
         self.layout = QVBoxLayout(self)
@@ -1703,7 +1956,7 @@ class MainScreen(QWidget):
         header = QFrame()
         header.setStyleSheet(f"""
             QFrame {{
-                background-color: {LIGHT_GRAY};
+                background-color: rgba(30, 30, 30, 0.8);
                 border-bottom: 1px solid {BORDER_COLOR};
             }}
         """)
@@ -1731,93 +1984,201 @@ class MainScreen(QWidget):
         self.goal_input_section = QFrame()
         self.goal_input_section.setStyleSheet(f"""
             QFrame {{
-                background-color: {LIGHT_GRAY};
-                border-bottom: 1px solid {BORDER_COLOR};
+                background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+                                          stop: 0 {PRIMARY_COLOR},
+                                          stop: 1 #0F0F0F);
             }}
         """)
 
         goal_layout = QVBoxLayout(self.goal_input_section)
-        goal_layout.setContentsMargins(30, 30, 30, 30)
-        goal_layout.setSpacing(20)
+        goal_layout.setContentsMargins(50, 50, 50, 50)
+        goal_layout.setSpacing(30)
 
-        goal_title = QLabel("What would you like to learn today?")
-        goal_title.setFont(QFont("Inter", 16, QFont.Weight.Bold))
-        goal_title.setStyleSheet(f"color: {TEXT_COLOR};")
-        goal_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        goal_layout.addWidget(goal_title)
-
-        self.goal_input = QLineEdit()
-        self.goal_input.setPlaceholderText("e.g., Deploy a Django site on Lightsail")
-        self.goal_input.setFixedHeight(50)
-        self.goal_input.setFont(QFont("Inter", 12))
-        self.goal_input.setStyleSheet(f"""
-            QLineEdit {{
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 8px;
-                padding: 12px 15px;
-                background-color: {PRIMARY_COLOR};
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {ACCENT_COLOR};
+        # Glass card container
+        goal_card = QFrame()
+        goal_card.setObjectName("goalCard")
+        goal_card.setStyleSheet(f"""
+            #goalCard {{
+                background: {CARD_BACKGROUND};
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px;
+                padding: 40px;
             }}
         """)
-        goal_layout.addWidget(self.goal_input)
 
+        card_layout = QVBoxLayout(goal_card)
+        card_layout.setSpacing(25)
+
+        # Hero text with accent highlight - FIXED FORMATTING
+        hero_container = QVBoxLayout()
+        hero_container.setSpacing(5)  # Reduce spacing between lines
+        
+        hero_line1 = QLabel("What do you want")
+        hero_line1.setFont(QFont("Inter", 28, QFont.Weight.Bold))
+        hero_line1.setStyleSheet(f"color: {TEXT_COLOR}; margin: 0px; padding: 0px;")
+        hero_line1.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        hero_line2 = QLabel()
+        hero_line2.setText(f'to <span style="color: {ACCENT_COLOR};">master</span> today?')
+        hero_line2.setFont(QFont("Inter", 28, QFont.Weight.Bold))
+        hero_line2.setStyleSheet(f"color: {TEXT_COLOR}; margin: 0px; padding: 0px;")
+        hero_line2.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        hero_container.addWidget(hero_line1)
+        hero_container.addWidget(hero_line2)
+        card_layout.addLayout(hero_container)
+
+        # Goal input - make it scrollable with QTextEdit but with constrained height
+        self.goal_input = QTextEdit()
+        self.goal_input.setPlaceholderText("e.g., Deploy a Django site on Lightsail")
+        self.goal_input.setMaximumHeight(120)  # FIXED: Constrain the height
+        self.goal_input.setMinimumHeight(80)   # Minimum height for usability
+        self.goal_input.setFont(QFont("Inter", 14))
+        self.goal_input.setStyleSheet(f"""
+            QTextEdit {{
+                background: rgba(45, 45, 45, 0.6);
+                border: 2px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 15px 20px;
+                color: {TEXT_COLOR};
+                font-size: 14px;
+            }}
+            QTextEdit:focus {{
+                border: 2px solid {ACCENT_COLOR};
+                background: rgba(45, 45, 45, 0.8);
+            }}
+        """)
+        card_layout.addWidget(self.goal_input)
+
+        # Settings toggles in glass container - FIXED VISIBILITY
         toggles_frame = QFrame()
         toggles_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {PRIMARY_COLOR};
-                border-radius: 8px;
-                border: 1px solid {BORDER_COLOR};
+                background: rgba(45, 45, 45, 0.4);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 20px;
             }}
         """)
-        toggles_frame.setFixedHeight(60)  # Add fixed height
+        toggles_frame.setFixedHeight(120)  # FIXED: Increased height for better spacing
 
-        toggles_layout = QHBoxLayout(toggles_frame)
-        toggles_layout.setContentsMargins(20, 15, 20, 15)  # Better padding
-        toggles_layout.setSpacing(40)  # More spacing between toggles
+        toggles_layout = QVBoxLayout(toggles_frame)  
+        toggles_layout.setContentsMargins(20, 15, 20, 15)
+        toggles_layout.setSpacing(15)
 
-        # Explanation mode toggle
-        explanation_container = QHBoxLayout()
+        # First row of toggles
+        first_row = QHBoxLayout()
+        first_row.setSpacing(40)
+
+        # Include Explanations toggle - FIXED: Made label clearly visible
+        explanation_container = QVBoxLayout()  # FIXED: Changed to vertical for better visibility
+        explanation_container.setSpacing(8)
+        
         explanation_label = QLabel("Include Explanations")
-        explanation_label.setFont(QFont("Inter", 11))
-        explanation_label.setStyleSheet(f"color: {TEXT_COLOR};")
+        explanation_label.setFont(QFont("Inter", 13, QFont.Weight.Medium))
+        explanation_label.setStyleSheet(f"color: {TEXT_COLOR}; padding: 0px; margin: 0px;")
         explanation_container.addWidget(explanation_label)
-        explanation_container.addSpacing(10)
+
         self.explanation_toggle = ToggleSwitch()
         self.explanation_toggle.toggled.connect(self.toggle_explanation_mode)
         explanation_container.addWidget(self.explanation_toggle)
-        toggles_layout.addLayout(explanation_container)
+        first_row.addLayout(explanation_container)
 
+        # Web Search toggle (placeholder, disabled) - FIXED: Made label clearly visible
+        search_container = QVBoxLayout()  # FIXED: Changed to vertical for better visibility
+        search_container.setSpacing(8)
         
+        search_label = QLabel("Web Search")
+        search_label.setFont(QFont("Inter", 13, QFont.Weight.Medium))
+        search_label.setStyleSheet(f"color: {SECONDARY_TEXT}; padding: 0px; margin: 0px;")
+        search_container.addWidget(search_label)
 
-        toggles_layout.addStretch()  # Push toggles to left
+        # Disabled toggle for web search
+        search_toggle = ToggleSwitch()
+        search_toggle.setEnabled(False)
+        search_container.addWidget(search_toggle)
+        first_row.addLayout(search_container)
 
-        goal_layout.addWidget(toggles_frame)
+        first_row.addStretch()
+        toggles_layout.addLayout(first_row)
+        card_layout.addWidget(toggles_frame)
 
+        # Fullscreen notification
+        fullscreen_notification = QFrame()
+        fullscreen_notification.setStyleSheet(f"""
+            QFrame {{
+                background: rgba(255, 59, 48, 0.15);
+                border: 1px solid {ACCENT_COLOR};
+                border-radius: 8px;
+                padding: 12px;
+            }}
+        """)
+
+        notification_layout = QHBoxLayout(fullscreen_notification)
+        notification_layout.setSpacing(10)
+
+        # Bell icon
+        bell_icon = QLabel("🔔")
+        bell_icon.setFont(QFont("Inter", 16))
+        notification_layout.addWidget(bell_icon)
+
+        notification_text = QLabel("Fullscreen mode enabled")
+        notification_text.setFont(QFont("Inter", 13, QFont.Weight.Medium))
+        notification_text.setStyleSheet(f"color: {TEXT_COLOR};")
+        notification_layout.addWidget(notification_text)
+        notification_layout.addStretch()
+
+        card_layout.addWidget(fullscreen_notification)
+
+        # Start Session button - REMOVED CSS TRANSFORM
         start_btn = QPushButton("Start Session")
-        start_btn.setFont(QFont("Inter", 13, QFont.Weight.Bold))
-        start_btn.setFixedHeight(50)
+        start_btn.setFont(QFont("Inter", 16, QFont.Weight.Bold))
+        start_btn.setFixedHeight(55)
         start_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        start_btn.setIcon(QIcon(str(resource_path("icons/play.png"))))
-        start_btn.setIconSize(QSize(20, 20))
         start_btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {ACCENT_COLOR};
+                background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+                                          stop: 0 {ACCENT_COLOR},
+                                          stop: 1 #FF6B5A);
                 color: white;
                 border: none;
-                border-radius: 8px;
-                padding-left: 15px;
+                border-radius: 12px;
+                font-weight: bold;
+                margin-top: 15px;
             }}
             QPushButton:hover {{
-                background-color: #808080;
+                background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+                                          stop: 0 #FF5722,
+                                          stop: 1 #FF8A65);
             }}
             QPushButton:pressed {{
-                background-color: #1e3a8a;
+                background: #E53E3E;
             }}
         """)
         start_btn.clicked.connect(self.start_session)
-        goal_layout.addWidget(start_btn)
+        card_layout.addWidget(start_btn)
+
+        # FIXED: Centered online status with S3 connection logic
+        status_container = QHBoxLayout()
+        status_container.addStretch()  # Center the status
+        
+        self.status_dot = QLabel("●")
+        self.status_dot.setFont(QFont("Inter", 16))
+        
+        self.status_text = QLabel()
+        self.status_text.setFont(QFont("Inter", 13))
+        
+        # Set initial status based on S3 connection
+        self.update_online_status()
+        
+        status_container.addWidget(self.status_dot)
+        status_container.addWidget(self.status_text)
+        status_container.addStretch()  # Center the status
+        
+        card_layout.addLayout(status_container)
+
+        goal_layout.addWidget(goal_card)
+        goal_layout.addStretch()
 
         self.layout.addWidget(self.goal_input_section)
 
@@ -1839,7 +2200,7 @@ class MainScreen(QWidget):
 
         self.layout.addWidget(self.goal_display_container)
 
-        # ===== Instruction area (steps) with ability to gray out when paused =====
+        # ===== Instruction area (steps) =====
         self.instruction_container = QFrame()
         self.instruction_container.setObjectName("instructionContainer")
         self.instruction_container.setStyleSheet(f"""
@@ -1885,18 +2246,18 @@ class MainScreen(QWidget):
         self.step_layout = QVBoxLayout(self.step_container)
         self.step_layout.setContentsMargins(15, 15, 15, 15)
         self.step_layout.setSpacing(10)
-        self.step_layout.addStretch()  # Push content to the top
+        self.step_layout.addStretch()
 
         self.instruction_area.setWidget(self.step_container)
         instruction_layout.addWidget(self.instruction_area)
 
-        self.layout.addWidget(self.instruction_container, 1)  # 1 = stretch factor
+        self.layout.addWidget(self.instruction_container, 1)
 
         # ===== Button controls =====
         self.button_panel = QFrame()
         self.button_panel.setStyleSheet(f"""
             QFrame {{
-                background-color: {LIGHT_GRAY};
+                background-color: rgba(30, 30, 30, 0.8);
                 border-top: 1px solid {BORDER_COLOR};
             }}
         """)
@@ -1914,10 +2275,10 @@ class MainScreen(QWidget):
         self.chat_btn.setIcon(QIcon(str(resource_path("icons/chat.png"))))
         self.chat_btn.setIconSize(QSize(24, 24))
         self.chat_btn.setToolTip("Ask a question (only available when session is paused)")
-        self.chat_btn.setEnabled(False)  # Initially disabled until paused
+        self.chat_btn.setEnabled(False)
         self.chat_btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {PRIMARY_COLOR};
+                background-color: rgba(45, 45, 45, 0.6);
                 border: 1px solid {BORDER_COLOR};
                 border-radius: 25px;
             }}
@@ -1934,51 +2295,14 @@ class MainScreen(QWidget):
         self.chat_btn.clicked.connect(self.open_chat)
         button_layout.addWidget(self.chat_btn)
 
-        # Toggle explanation mode button
-        """self.explanation_btn = QPushButton()
-        self.explanation_btn.setFixedSize(50, 50)
-        self.explanation_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.explanation_btn.setIcon(QIcon(os.path.join(ICON_DIR, "explanation.png")))
-        self.explanation_btn.setIconSize(QSize(24, 24))
-        self.explanation_btn.setToolTip("Toggle explanation mode")
-        self.explanation_btn.setStyleSheet(f"
-            QPushButton {{
-                background-color: {PRIMARY_COLOR};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 25px;
-            }}
-            QPushButton:hover {{
-                background-color: {LIGHT_GRAY};
-                border: 1px solid {ACCENT_COLOR};
-            }}
-        ")
-        self.explanation_btn.clicked.connect(lambda: self.toggle_explanation_mode(not self.explanation_mode))
-        button_layout.addWidget(self.explanation_btn)
-
-        
-"""
         # Add spacer to push buttons to the right
         button_layout.addStretch()
 
-        # Pause button (icon button)
+        # Pause button
         self.pause_btn = QPushButton()
         self.pause_btn.setFixedSize(50, 50)
         self.pause_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.pause_btn.setIcon(QIcon(str(resource_path("icons/pause.png"))))
-
-        self.pause_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {BUTTON_ORANGE};
-                color: white;
-                border: none;
-                border-radius: 25px;
-                padding: 8px 18px;
-            }}
-            QPushButton:hover {{
-                background-color: #808080;
-            }}
-        """)
-
         self.pause_btn.setIconSize(QSize(24, 24))
         self.pause_btn.setToolTip("Pause session")
         self.pause_btn.setStyleSheet(f"""
@@ -1989,31 +2313,17 @@ class MainScreen(QWidget):
                 border-radius: 25px;
             }}
             QPushButton:hover {{
-                background-color: #ea580c;
+                background-color: #FF5722;
             }}
         """)
         self.pause_btn.clicked.connect(self.toggle_pause)
         button_layout.addWidget(self.pause_btn)
 
-        # Stop button (icon button)
+        # Stop button
         self.stop_btn = QPushButton()
         self.stop_btn.setFixedSize(50, 50)
         self.stop_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.stop_btn.setIcon(QIcon(os.path.join(ICON_DIR, "stop.png")))
-
-        self.stop_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {BUTTON_RED};
-                color: white;
-                border: none;
-                border-radius: 25px;
-                padding: 8px 18px;
-            }}
-            QPushButton:hover {{
-                background-color: #b91c1c;
-            }}
-        """)
-
+        self.stop_btn.setIcon(QIcon(str(resource_path("icons/stop.png"))))
         self.stop_btn.setIconSize(QSize(24, 24))
         self.stop_btn.setToolTip("Stop session")
         self.stop_btn.setStyleSheet(f"""
@@ -2030,7 +2340,7 @@ class MainScreen(QWidget):
         self.stop_btn.clicked.connect(self.stop_session)
         button_layout.addWidget(self.stop_btn)
 
-        # Next button (text + icon)
+        # Next button
         self.next_btn = QPushButton()
         self.next_btn.setFixedHeight(50)
         self.next_btn.setMinimumWidth(140)
@@ -2049,7 +2359,7 @@ class MainScreen(QWidget):
                 text-align: right;
             }}
             QPushButton:hover {{
-                background-color: #2563eb;
+                background-color: #FF5722;
             }}
             QPushButton:disabled {{
                 background-color: {DISABLED_COLOR};
@@ -2060,6 +2370,17 @@ class MainScreen(QWidget):
 
         self.layout.addWidget(self.button_panel)
 
+    def update_online_status(self):
+        """Update the online/offline status display"""
+        if self.is_online:
+            self.status_dot.setStyleSheet(f"color: {SECONDARY_COLOR};")
+            self.status_text.setText("Online")
+            self.status_text.setStyleSheet(f"color: {SECONDARY_TEXT};")
+        else:
+            self.status_dot.setStyleSheet(f"color: {BUTTON_RED};")
+            self.status_text.setText("Offline")
+            self.status_text.setStyleSheet(f"color: {SECONDARY_TEXT};")
+
     def set_user(self, user_id):
         """Set the user ID and update welcome message"""
         self.user_id = user_id
@@ -2068,7 +2389,6 @@ class MainScreen(QWidget):
     def set_course(self, course_id):
         """Set the course ID"""
         self.course_id = course_id
-        # You could update UI to show the course ID if desired
 
     def toggle_explanation_mode(self, enabled):
         """Toggle explanation mode on/off"""
@@ -2078,70 +2398,27 @@ class MainScreen(QWidget):
         if hasattr(self, 'explanation_toggle'):
             self.explanation_toggle.setChecked(enabled)
 
-        # Update button appearance
-        if hasattr(self, 'explanation_btn'):
-            if enabled:
-                self.explanation_btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {EXPLANATION_BG_COLOR};
-                        border: 2px solid {EXPLANATION_BORDER_COLOR};
-                        border-radius: 25px;
-                    }}
-                    QPushButton:hover {{
-                        background-color: #fff7ed;
-                    }}
-                """)
-            else:
-                self.explanation_btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {PRIMARY_COLOR};
-                        border: 1px solid {BORDER_COLOR};
-                        border-radius: 25px;
-                    }}
-                    QPushButton:hover {{
-                        background-color: {LIGHT_GRAY};
-                        border: 1px solid {ACCENT_COLOR};
-                    }}
-                """)
-
-        # Add notification
-        notification = {
-            'instruction': f"✓ Explanation mode {'enabled' if enabled else 'disabled'}",
-            'format': 'text',
-            'system_step': True
-        }
-        self.add_instruction(notification)
-
+        # REMOVED: No more system notifications for settings changes
 
         # Update training wheels if active
         if hasattr(self, 'is_training_wheels_active') and self.is_training_wheels_active:
             import training_wheels as tw
             tw.toggle_explanation_mode(enabled)
 
-            # Add step to inform user
-            action = "enabled" if enabled else "disabled"
-            self.add_instruction({
-                'instruction': f"Explanation mode {action}. {('You will now receive explanations about why each step matters.' if enabled else 'Explanations will no longer be shown.')}",
-                'format': 'text',
-                'system_step': True
-            })
-
+            # REMOVED: No step notifications for explanation mode changes
 
     def start_session(self):
-        """Start a new training session with synchronized step indexes"""
-        goal = self.goal_input.text().strip()
+        """Start a new training session"""
+        goal = self.goal_input.toPlainText().strip()  # Use toPlainText() for QTextEdit
         if goal:
             # Save goal and update UI state
             self.goal = goal
-            # Start with step index 1 (NOT 0 - which is for system initialization only)
             self.step_index = 1
             self.is_session_active = True
             self.is_session_paused = False
 
             # Get explanation mode state
             self.explanation_mode = self.explanation_toggle.isChecked()
-
-            
 
             # Update UI visibility
             self.goal_input_section.setVisible(False)
@@ -2172,18 +2449,14 @@ class MainScreen(QWidget):
                     widget.setParent(None)
                     widget.deleteLater()
 
-        self.steps = []  # Clear step references
+        self.steps = []
 
     def add_instruction(self, content):
-        """Add a new instruction step with proper step numbering
-
-        Args:
-            content: Can be a string or a dict with 'instruction' and 'format' keys
-        """
+        """Add a new instruction step with proper step numbering"""
         # Skip system steps in step numbering display
         is_system_step = isinstance(content, dict) and content.get('system_step', False)
         if is_system_step:
-            display_step_index = None  # Don't show step number for system steps
+            display_step_index = None
         else:
             display_step_index = self.step_index
 
@@ -2191,7 +2464,7 @@ class MainScreen(QWidget):
         for step in self.steps:
             step.setStyleSheet(f"""
                 #stepItem {{
-                    background-color: {PRIMARY_COLOR};
+                    background-color: rgba(30, 30, 30, 0.4);
                     border-left: 1px solid {BORDER_COLOR};
                     border-radius: 6px;
                     margin: 4px 0px;
@@ -2289,7 +2562,7 @@ class MainScreen(QWidget):
             self.chat_btn.setEnabled(True)
             self.chat_btn.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: {PRIMARY_COLOR};
+                    background-color: rgba(45, 45, 45, 0.6);
                     border: 1px solid {ACCENT_COLOR};
                     border-radius: 25px;
                 }}
@@ -2299,12 +2572,11 @@ class MainScreen(QWidget):
                 }}
             """)
 
-            # Directly change the background color of the step container widget
+            # Apply paused background
             self.step_container.setStyleSheet(f"""
                 background-color: {PAUSED_BG_COLOR};
             """)
 
-            # Apply colored background to the instruction area
             self.instruction_area.setStyleSheet(f"""
                 QScrollArea {{
                     background-color: {PAUSED_BG_COLOR};
@@ -2328,7 +2600,6 @@ class MainScreen(QWidget):
                 }}
             """)
 
-            # Also update the container background
             self.instruction_container.setStyleSheet(f"""
                 #instructionContainer {{
                     background-color: {PAUSED_BG_COLOR};
@@ -2346,7 +2617,7 @@ class MainScreen(QWidget):
                     border-radius: 25px;
                 }}
                 QPushButton:hover {{
-                    background-color: #ea580c;
+                    background-color: #FF5722;
                 }}
             """)
 
@@ -2362,7 +2633,7 @@ class MainScreen(QWidget):
                     text-align: right;
                 }}
                 QPushButton:hover {{
-                    background-color: #808080;
+                    background-color: #FF5722;
                 }}
             """)
 
@@ -2377,10 +2648,9 @@ class MainScreen(QWidget):
                 }}
             """)
 
-            # Reset step container background
+            # Reset backgrounds
             self.step_container.setStyleSheet("")
 
-            # Reset scroll area background
             self.instruction_area.setStyleSheet(f"""
                 QScrollArea {{
                     background-color: {PRIMARY_COLOR};
@@ -2404,7 +2674,6 @@ class MainScreen(QWidget):
                 }}
             """)
 
-            # Restore normal background to instruction area
             self.instruction_container.setStyleSheet(f"""
                 #instructionContainer {{
                     background-color: {PRIMARY_COLOR};
@@ -2443,12 +2712,12 @@ class MainScreen(QWidget):
             # Display a message if course_id is not set
             if not hasattr(self, 'course_id') or not self.course_id:
                 self.chat_dialog.add_system_message("Warning: No course ID is set. Using default course.")
-                self.chat_dialog.course_id = "001"  # Default course ID
+                self.chat_dialog.course_id = "001"
 
             self.chat_dialog.show()
 
 
-
+# Apply UI integration
 MainScreen = ui_integration.integrate_training_wheels(MainScreen)
 
 
@@ -2458,8 +2727,7 @@ class LearnChainTutor(QStackedWidget):
     def __init__(self):
         super().__init__()
 
-        # Set window icon FIRST
-        #icon_path = str(resource_path("training_wheels/assets/icon.ico"))
+        # Set window icon
         icon_path = str(resource_path("assets/icon.ico"))
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
@@ -2484,10 +2752,12 @@ class LearnChainTutor(QStackedWidget):
         # Set window title
         self.setWindowTitle("LearnChain Tutor")
 
-        # Apply global style improvements
+        # Apply global dark theme styles - REMOVED CSS TRANSFORM
         self.setStyleSheet(f"""
             QWidget {{
                 font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                background-color: {PRIMARY_COLOR};
+                color: {TEXT_COLOR};
             }}
 
             QPushButton {{
@@ -2502,7 +2772,7 @@ class LearnChainTutor(QStackedWidget):
             }}
 
             QScrollBar::handle:vertical {{
-                background: #b9b9b9;
+                background: {ACCENT_COLOR};
                 min-height: 20px;
                 border-radius: 5px;
             }}
@@ -2519,179 +2789,10 @@ class LearnChainTutor(QStackedWidget):
     def showEvent(self, event):
         """Override showEvent to set icon after window is shown"""
         super().showEvent(event)
-        #icon_path = str(resource_path("training_wheels/assets/icon.ico"))
         icon_path = str(resource_path("assets/icon.ico"))
         if os.path.exists(icon_path):
             # Force set taskbar icon after window is visible
             QTimer.singleShot(100, lambda: set_taskbar_icon(self, icon_path))
-
-
-class AnimatedStep(QFrame):
-    """A single instruction step with smooth reveal animation and proper styling"""
-
-    def __init__(self, step_number, content, is_current=False):
-        super().__init__()
-        self.setObjectName("stepItem")
-        self.content = content
-
-        if is_current:
-            self.setStyleSheet(f"""
-                #stepItem {{
-                    background-color: #f1f5f9;
-                    border-left: 4px solid {ACCENT_COLOR};
-                    border-radius: 6px;
-                    margin: 4px 0px;
-                }}
-            """)
-        else:
-            self.setStyleSheet(f"""
-                #stepItem {{
-                    background-color: {PRIMARY_COLOR};
-                    border-left: 1px solid {BORDER_COLOR};
-                    border-radius: 6px;
-                    margin: 4px 0px;
-                }}
-            """)
-
-        self.init_ui(step_number)
-        self.start_animation()
-
-    def init_ui(self, step_number):
-        """Set up the UI for the step item"""
-        main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(15, 15, 15, 15)
-        main_layout.setSpacing(15)
-
-        step_indicator = QLabel(str(step_number))
-        step_indicator.setObjectName("stepNumber")
-        step_indicator.setFixedSize(30, 30)
-        step_indicator.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        step_indicator.setFont(QFont("Inter", 13, QFont.Weight.Bold))
-        step_indicator.setStyleSheet(f"""
-            #stepNumber {{
-                background-color: {ACCENT_COLOR};
-                color: white;
-                border-radius: 15px;
-                font-size: 13px;
-            }}
-        """)
-        main_layout.addWidget(step_indicator)
-
-        content_layout = QVBoxLayout()
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(5)
-
-        instruction_blocks = self.content.get("instruction", [])
-        explanation_blocks = self.content.get("explanation", [])
-        is_system_step = self.content.get("system_step", False)
-
-        # Support fallback if instruction is a string (legacy)
-        if isinstance(instruction_blocks, str):
-            instruction_blocks = [{"type": "text", "content": instruction_blocks}]
-        has_instruction = isinstance(instruction_blocks, list) and len(instruction_blocks) > 0
-
-        # Show fallback label if no instruction
-        if not has_instruction and not is_system_step:
-            label = QLabel(f"Step {step_number}: No specific instruction provided")
-            label.setStyleSheet("font-size: 13px; font-style: italic; color: #64748b;")
-            content_layout.addWidget(label)
-
-        # Render instruction blocks
-        for block in instruction_blocks:
-            btype = block.get("type")
-            bcontent = block.get("content", "")
-            blabel = block.get("label", "")
-
-            if btype == "text":
-                label = QLabel(bcontent)
-                label.setWordWrap(True)
-                label.setStyleSheet("font-size: 14px;")
-                content_layout.addWidget(label)
-
-            elif btype == "link":
-                frame = QFrame()
-                frame.setStyleSheet(f"""
-                    QFrame {{
-                        background-color: {LIGHT_GRAY};
-                        border: 1px solid {BORDER_COLOR};
-                        border-radius: 5px;
-                        padding: 6px;
-                    }}
-                """)
-                hbox = QHBoxLayout(frame)
-                text = QLabel(f"<b>{blabel}</b><br><small style='color:#64748b'>{bcontent}</small>")
-                text.setTextFormat(Qt.TextFormat.RichText)
-                text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-                text.setWordWrap(True)
-                hbox.addWidget(text)
-
-                btn = QPushButton("Copy Link")
-                btn.setToolTip(f"Copy link: {bcontent}")
-                btn.clicked.connect(lambda _, v=bcontent: QApplication.clipboard().setText(v))
-
-                hbox.addWidget(btn)
-                content_layout.addWidget(frame)
-
-            elif btype == "code":
-                code_edit = QPlainTextEdit()
-                code_edit.setReadOnly(True)
-                code_edit.setFont(QFont("Consolas, 'Courier New', monospace", 12))
-                code_edit.setStyleSheet(f"""
-                    QPlainTextEdit {{
-                        background-color: #1e293b;
-                        color: #e2e8f0;
-                        border-radius: 4px;
-                        padding: 8px;
-                        border: none;
-                    }}
-                """)
-                code_edit.setPlainText(bcontent)
-                lines = bcontent.count('\n') + 1
-                line_height = QFontMetrics(code_edit.font()).height()
-                code_edit.setFixedHeight(min(lines, 15) * line_height + 30)
-                content_layout.addWidget(code_edit)
-
-        # Render explanation blocks
-        if explanation_blocks:
-            frame = QFrame()
-            frame.setStyleSheet(f"""
-                background-color: {EXPLANATION_BG_COLOR};
-                border-left: 3px solid {EXPLANATION_BORDER_COLOR};
-                border-radius: 4px;
-                margin-top: 8px;
-            """)
-            exp_layout = QVBoxLayout(frame)
-            exp_layout.setContentsMargins(12, 10, 12, 10)
-
-            for block in explanation_blocks:
-                if block.get("type") == "text":
-                    elabel = QLabel(block.get("content", ""))
-                    elabel.setWordWrap(True)
-                    elabel.setStyleSheet("font-size: 13px; color: #78350f;")
-                    exp_layout.addWidget(elabel)
-
-            content_layout.addWidget(frame)
-
-        main_layout.addLayout(content_layout, 1)
-
-
-
-    def start_animation(self):
-        """Start the reveal animation"""
-        # Create opacity effect
-        self.opacity_effect = QGraphicsOpacityEffect(self)
-        self.opacity_effect.setOpacity(0)
-        self.setGraphicsEffect(self.opacity_effect)
-
-        # Create and configure animation
-        self.animation = QPropertyAnimation(self.opacity_effect, b"opacity")
-        self.animation.setDuration(500)
-        self.animation.setStartValue(0)
-        self.animation.setEndValue(1)
-        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
-
-        # Start the animation
-        self.animation.start()
 
 
 def register_custom_protocol():
@@ -2756,8 +2857,6 @@ if __name__ == "__main__":
         print("✅ App ID set")
     except Exception as e:
         print(f"❌ Failed to set App ID: {e}")
-    
-   
 
     # Enable high DPI scaling for PyQt6
     try:
@@ -2784,22 +2883,34 @@ if __name__ == "__main__":
 
     QApplication.setStyle("Fusion")
 
-    app.setStyleSheet("""
-        QWidget {
-            background-color: #ffffff;
-            color: #1e293b;
+    # Apply dark theme to the entire application - REMOVED CSS TRANSFORM
+    app.setStyleSheet(f"""
+        QWidget {{
+            background-color: {PRIMARY_COLOR};
+            color: {TEXT_COLOR};
             font-family: Inter, sans-serif;
             font-size: 13px;
-        }
-        QLineEdit {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
+        }}
+        QLineEdit {{
+            background-color: rgba(45, 45, 45, 0.6);
+            border: 1px solid {BORDER_COLOR};
             border-radius: 6px;
             padding: 8px;
-        }
-        QLineEdit:focus {
-            border: 1px solid #dc2626;
-        }
+            color: {TEXT_COLOR};
+        }}
+        QLineEdit:focus {{
+            border: 1px solid {ACCENT_COLOR};
+        }}
+        QTextEdit {{
+            background-color: rgba(45, 45, 45, 0.6);
+            border: 1px solid {BORDER_COLOR};
+            border-radius: 6px;
+            padding: 8px;
+            color: {TEXT_COLOR};
+        }}
+        QTextEdit:focus {{
+            border: 1px solid {ACCENT_COLOR};
+        }}
     """)
 
     # Use environment variable to check for integrated mode
@@ -2819,7 +2930,8 @@ if __name__ == "__main__":
             QTimer.singleShot(200, lambda: set_taskbar_icon(window, icon_path))
 
     app.exec()
-     # Trigger preemptive initialization IMMEDIATELY
+
+    # Trigger preemptive initialization IMMEDIATELY
     try:
         import retriever
         print("🚀 ULTRA-FAST MODE: Starting preemptive initialization...")

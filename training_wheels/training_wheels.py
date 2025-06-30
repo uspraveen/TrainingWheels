@@ -1,4 +1,4 @@
-# training_wheels.py - Fixed S3 upload deduplication and performance issues
+# training_wheels.py - Fixed version with better error handling
 
 import os
 import json
@@ -461,7 +461,7 @@ class LLMManager:
                 chat_history=chat_history or []
             )
 
-            # Call OpenAI API
+            # Call OpenAI API with better error handling
             payload = {
                 "model": self.model,
                 "messages": [
@@ -483,12 +483,15 @@ class LLMManager:
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {self.api_key}"
                 },
-                json=payload
+                json=payload,
+                timeout=30  # Add timeout
             )
 
             if response.status_code != 200:
+                error_detail = response.text if response.text else f"Status code: {response.status_code}"
+                print(f"OpenAI API error: {error_detail}")
                 return {
-                    "instruction": f"Error getting step {step_index} guidance. Please try again.",
+                    "instruction": f"Error getting step {step_index} guidance: {error_detail[:100]}",
                     "format": "text",
                     "error": True
                 }
@@ -526,24 +529,110 @@ class LLMManager:
 
             self.s3_manager.upload_file(response_path, session_id, "llm_responses", response_filename)
 
-            # Parse JSON response
+            # Parse JSON response with better error handling and data validation
             try:
                 guidance = json.loads(content)
+                
+                # CRITICAL: Validate and sanitize the guidance structure
                 instruction_data = {
-                    "instruction": guidance.get("instruction", f"Step {step_index}: No specific instruction provided"),
-                    "format": guidance.get("format", "text"),
-                    "details": guidance.get("details", {})
+                    "instruction": "No instruction provided",
+                    "format": "text",
+                    "details": {}
                 }
+                
+                # Handle different instruction formats safely
+                if "instruction" in guidance:
+                    raw_instruction = guidance["instruction"]
+                    
+                    if isinstance(raw_instruction, list):
+                        # List of instruction blocks - validate each block
+                        validated_blocks = []
+                        for block in raw_instruction:
+                            if isinstance(block, dict):
+                                validated_block = {
+                                    "type": str(block.get("type", "text")),
+                                    "content": str(block.get("content", "")),
+                                }
+                                if "label" in block:
+                                    validated_block["label"] = str(block["label"])
+                                validated_blocks.append(validated_block)
+                            else:
+                                # Convert non-dict items to text blocks
+                                validated_blocks.append({
+                                    "type": "text",
+                                    "content": str(block)
+                                })
+                        instruction_data["instruction"] = validated_blocks
+                    elif isinstance(raw_instruction, str):
+                        instruction_data["instruction"] = raw_instruction
+                    elif isinstance(raw_instruction, dict):
+                        # Handle nested instruction dict
+                        if "blocks" in raw_instruction:
+                            blocks = raw_instruction["blocks"]
+                            if isinstance(blocks, list):
+                                validated_blocks = []
+                                for block in blocks:
+                                    if isinstance(block, dict):
+                                        validated_block = {
+                                            "type": str(block.get("type", "text")),
+                                            "content": str(block.get("content", "")),
+                                        }
+                                        if "label" in block:
+                                            validated_block["label"] = str(block["label"])
+                                        validated_blocks.append(validated_block)
+                                instruction_data["instruction"] = validated_blocks
+                            else:
+                                instruction_data["instruction"] = str(raw_instruction)
+                        else:
+                            instruction_data["instruction"] = str(raw_instruction)
+                    else:
+                        # Fallback: convert to string
+                        instruction_data["instruction"] = str(raw_instruction)
+                else:
+                    instruction_data["instruction"] = f"Step {step_index}: No specific instruction provided"
 
+                # Validate format
+                if "format" in guidance:
+                    format_val = guidance["format"]
+                    if isinstance(format_val, str) and format_val in ["text", "code", "json"]:
+                        instruction_data["format"] = format_val
+                    else:
+                        instruction_data["format"] = "text"
+
+                # Handle details safely
+                if "details" in guidance and isinstance(guidance["details"], dict):
+                    instruction_data["details"] = guidance["details"]
+
+                # Handle explanation safely
                 if "explanation" in guidance:
-                    instruction_data["explanation"] = guidance.get("explanation", "")
+                    raw_explanation = guidance["explanation"]
+                    if isinstance(raw_explanation, list):
+                        # Convert list to string
+                        exp_items = []
+                        for exp_item in raw_explanation:
+                            if isinstance(exp_item, dict) and "content" in exp_item:
+                                exp_items.append(str(exp_item["content"]))
+                            else:
+                                exp_items.append(str(exp_item))
+                        instruction_data["explanation"] = "\n".join(exp_items) if exp_items else ""
+                    else:
+                        instruction_data["explanation"] = str(raw_explanation) if raw_explanation else ""
 
                 return instruction_data
 
-            except (json.JSONDecodeError, TypeError):
+            except (json.JSONDecodeError, TypeError) as parse_error:
+                print(f"JSON parsing error: {parse_error}")
+                print(f"Raw content: {content[:200]}...")
+                
+                # Try to extract useful information from the raw content
                 if isinstance(content, str) and content.strip():
+                    # Clean up the content and try to use it as instruction text
+                    clean_content = content.strip()
+                    if len(clean_content) > 500:
+                        clean_content = clean_content[:500] + "..."
+                    
                     return {
-                        "instruction": f"Step {step_index}: {content}",
+                        "instruction": clean_content,
                         "format": "text"
                     }
                 else:
@@ -553,7 +642,20 @@ class LLMManager:
                         "error": True
                     }
 
-        except Exception:
+        except requests.exceptions.Timeout:
+            return {
+                "instruction": f"Timeout error getting step {step_index} guidance. Please try again.",
+                "format": "text",
+                "error": True
+            }
+        except requests.exceptions.RequestException as req_error:
+            return {
+                "instruction": f"Network error getting step {step_index} guidance: {str(req_error)[:100]}",
+                "format": "text",
+                "error": True
+            }
+        except Exception as general_error:
+            print(f"Unexpected error in get_next_instruction: {general_error}")
             return {
                 "instruction": f"Error generating step {step_index}. Please try again.",
                 "format": "text",
@@ -1112,12 +1214,13 @@ class TrainingWheels:
             if self.callback:
                 self.callback(instruction)
 
-        except Exception:
+        except Exception as e:
             # Try to inform the user
+            print(f"Error in process_next_step: {e}")
             if hasattr(self, 'callback') and self.callback:
                 try:
                     self.callback({
-                        "instruction": f"Error processing step",
+                        "instruction": f"Error processing step: {str(e)[:100]}",
                         "format": "text",
                         "error": True
                     })

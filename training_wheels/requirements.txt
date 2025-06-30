@@ -15,3 +15,16 @@ PyQt6
 python-dotenv
 requests
 rich
+
+
+# Enhanced LearnChain Tutor Requirements
+# Core dependencies for the enhanced application
+
+# PyQt6 for the enhanced UI
+
+
+# Enhanced markdown rendering support
+markdown>=3.5.1
+Pygments>=2.17.2  # For syntax highlighting in markdown
+
+typing
