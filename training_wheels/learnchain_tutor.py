@@ -1,16 +1,16 @@
-# learnchain_tutor.py - Fixed version
+# learnchain_tutor.py - Complete updated version with enhanced chat dialog
 
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton,
     QVBoxLayout, QStackedWidget, QScrollArea, QFrame, QHBoxLayout,
     QSizePolicy, QGraphicsOpacityEffect, QSpacerItem, QTextEdit,
     QSplitter, QDialog, QDialogButtonBox, QCheckBox, QSlider,
-    QComboBox, QFileDialog, QProgressDialog, QMessageBox
+    QComboBox, QFileDialog, QProgressDialog, QMessageBox, QRadioButton
 )
 from PyQt6.QtGui import QFont, QPixmap, QColor, QIcon, QFontDatabase, QPainter, QPen, QPainterPath
 from PyQt6.QtCore import (
     Qt, QPropertyAnimation, pyqtSignal, QEasingCurve, QSize, QTimer, QPoint, QRect,
-    QSequentialAnimationGroup, QVariantAnimation, QUrl, QThread
+    QSequentialAnimationGroup, QVariantAnimation, QUrl, QThread, QBuffer
 )
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 
@@ -18,6 +18,9 @@ import sys
 import os
 import json
 import logging
+import base64
+import pyautogui
+import re
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 from PyQt6.QtWidgets import QApplication
@@ -35,7 +38,7 @@ import ctypes
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Modern dark theme color scheme
+# Enhanced modern dark theme color scheme
 PRIMARY_COLOR = "#121212"  # Deep dark gray background
 CARD_BACKGROUND = "rgba(30, 30, 30, 0.8)"  # Semi-transparent for glass effect
 ACCENT_COLOR = "#FF3B30"  # Vivid orange-red
@@ -867,175 +870,144 @@ class AnimatedStep(QFrame):
         self.animation.start()
 
 
-# === MODIFICATIONS TO CHATDIALOG IN LEARNCHAIN_TUTOR.PY ===
-
+# === UPDATED CHATDIALOG WITH FIXED STYLING ===
 class ChatDialog(QDialog):
-    """Dialog for user to ask questions and receive help during a session, integrated with retriever backend"""
+    """Chat dialog with consistent styling and LLM-enhanced formatting"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_widget = parent
         self.setWindowTitle("Chat with Assistant")
-        self.setMinimumSize(500, 600)  # Slightly larger dialog for better readability
+        self.setMinimumSize(600, 700)
+        
+        # Use consistent styling with the rest of the app
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {PRIMARY_COLOR};
             }}
         """)
 
-        # Knowledge retriever settings - with reasonable defaults
+        # Enhanced defaults
         self.use_query_enhancement = True
         self.use_enhanced_retrieval = True
         self.use_multi_query = True
-        self.is_processing = False  # Track if a query is being processed
-        self.conversation_count = 0  # Track number of Q&A pairs
+        self.capture_screen = False
+        self.is_processing = False
+        self.conversation_count = 0
 
-        # Ensure the dialog is modal - prevents interaction with parent window
         self.setModal(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        # Chat history display with enhanced scrollbar styling
+        # Chat history display
         self.chat_history = QTextEdit()
         self.chat_history.setReadOnly(True)
         self.chat_history.setStyleSheet(f"""
             QTextEdit {{
                 border: 1px solid {BORDER_COLOR};
-                border-radius: 6px;
-                background-color: {LIGHT_GRAY};
-                padding: 10px;
+                border-radius: 8px;
+                background-color: {PRIMARY_COLOR};
+                padding: 15px;
                 font-family: Inter, Arial;
-                font-size: 12px;
+                font-size: 14px;
                 color: {TEXT_COLOR};
+                line-height: 1.5;
             }}
             QScrollBar:vertical {{
                 background: {LIGHT_GRAY};
-                width: 12px;
+                width: 8px;
                 margin: 0px;
-                border-radius: 6px;
+                border-radius: 4px;
             }}
             QScrollBar::handle:vertical {{
                 background: {ACCENT_COLOR};
-                min-height: 30px;
-                border-radius: 6px;
+                min-height: 20px;
+                border-radius: 4px;
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
             }}
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
-                background: {BORDER_COLOR};
-                border-radius: 6px;
+                background: transparent;
             }}
         """)
         layout.addWidget(self.chat_history)
 
-        # Settings section with enhanced styling
-        settings_group = QFrame()
-        settings_group.setStyleSheet(f"""
-            QFrame {{
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 6px;
-                background-color: rgba(45, 45, 45, 0.6);
-                padding: 10px;
+        # Settings section
+        settings_container = QHBoxLayout()
+        settings_container.setSpacing(15)
+
+        # Screen capture toggle
+        self.capture_toggle = QRadioButton("📸 Screen Capture")
+        self.capture_toggle.setFont(QFont("Inter", 11))
+        self.capture_toggle.setStyleSheet(f"""
+            QRadioButton {{
+                color: {TEXT_COLOR};
+                background: transparent;
+                spacing: 8px;
+                padding: 4px;
+            }}
+            QRadioButton::indicator {{
+                width: 16px;
+                height: 16px;
+                border-radius: 8px;
+                border: 2px solid {BORDER_COLOR};
+                background: rgba(255, 255, 255, 0.05);
+            }}
+            QRadioButton::indicator:checked {{
+                background: {ACCENT_COLOR};
+                border: 2px solid {ACCENT_COLOR};
+            }}
+            QRadioButton::indicator:hover {{
+                border: 2px solid {ACCENT_COLOR};
             }}
         """)
-        settings_layout = QVBoxLayout(settings_group)
+        self.capture_toggle.toggled.connect(self.toggle_screen_capture)
+        settings_container.addWidget(self.capture_toggle)
+        settings_container.addStretch()
+        
+        layout.addLayout(settings_container)
 
-        # Settings label
-        settings_label = QLabel("Retrieval Settings")
-        settings_label.setFont(QFont("Inter", 11, QFont.Weight.Bold))
-        settings_label.setStyleSheet(f"color: {TEXT_COLOR};")
-        settings_layout.addWidget(settings_label)
-
-        # Settings toggles with enhanced checkbox styling
-        toggle_layout = QHBoxLayout()
-
-        # Custom stylesheet for checkboxes
-        checkbox_style = f"""
-            QCheckBox {{
-                spacing: 8px;
-                font-size: 13px;
-                color: {TEXT_COLOR};
-            }}
-            QCheckBox::indicator {{
-                width: 18px;
-                height: 18px;
-                border-radius: 4px;
-                border: 1px solid {BORDER_COLOR};
-            }}
-            QCheckBox::indicator:unchecked {{
-                background-color: rgba(45, 45, 45, 0.8);
-            }}
-            QCheckBox::indicator:checked {{
-                background-color: {ACCENT_COLOR};
-                border: 1px solid {ACCENT_COLOR};
-            }}
-            QCheckBox::indicator:hover {{
-                border: 1px solid {ACCENT_COLOR};
-            }}
-        """
-
-        # Query enhancement toggle
-        self.enhance_toggle = QCheckBox("Query Enhancement")
-        self.enhance_toggle.setChecked(True)
-        self.enhance_toggle.setFont(QFont("Inter", 10))
-        self.enhance_toggle.setStyleSheet(checkbox_style)
-        self.enhance_toggle.stateChanged.connect(self.update_settings)
-        toggle_layout.addWidget(self.enhance_toggle)
-
-        # Enhanced retrieval toggle
-        self.retrieval_toggle = QCheckBox("Enhanced Retrieval")
-        self.retrieval_toggle.setChecked(True)
-        self.retrieval_toggle.setFont(QFont("Inter", 10))
-        self.retrieval_toggle.setStyleSheet(checkbox_style)
-        self.retrieval_toggle.stateChanged.connect(self.update_settings)
-        toggle_layout.addWidget(self.retrieval_toggle)
-
-        settings_layout.addLayout(toggle_layout)
-        layout.addWidget(settings_group)
-
-        # After the existing toggles, add multi-query toggle
-        # Multi-query toggle
-        self.multi_query_toggle = QCheckBox("Multi-Query Retrieval")
-        self.multi_query_toggle.setChecked(True)  # Default to enabled
-        self.multi_query_toggle.setFont(QFont("Inter", 10))
-        self.multi_query_toggle.setStyleSheet(checkbox_style)
-        self.multi_query_toggle.setToolTip("Generate multiple diverse queries for better results")
-        self.multi_query_toggle.stateChanged.connect(self.update_settings)
-        toggle_layout.addWidget(self.multi_query_toggle)
-
-        # Message input with container for progress indicator
+        # Message input container
         input_container = QFrame()
         input_container.setStyleSheet("background: transparent; border: none;")
         input_layout = QVBoxLayout(input_container)
         input_layout.setContentsMargins(0, 0, 0, 0)
-        input_layout.setSpacing(5)
+        input_layout.setSpacing(8)
 
-        # Progress indicator label (hidden by default)
+        # Progress indicator
         self.progress_label = QLabel("Processing your question...")
-        self.progress_label.setFont(QFont("Inter", 10, QFont.Weight.Normal))
-        self.progress_label.setStyleSheet(f"color: {ACCENT_COLOR}; font-style: italic;")
+        self.progress_label.setFont(QFont("Inter", 11))
+        self.progress_label.setStyleSheet(f"""
+            color: {ACCENT_COLOR}; 
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid {ACCENT_COLOR};
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-style: italic;
+        """)
         self.progress_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.progress_label.setVisible(False)  # Initially hidden
+        self.progress_label.setVisible(False)
         input_layout.addWidget(self.progress_label)
 
         # Text input field
         self.message_input = QLineEdit()
-        self.message_input.setPlaceholderText("Type your question here...")
+        self.message_input.setPlaceholderText("Ask me anything about your training...")
         self.message_input.setFixedHeight(45)
-        self.message_input.setFont(QFont("Inter", 11))
+        self.message_input.setFont(QFont("Inter", 13))
         self.message_input.setStyleSheet(f"""
             QLineEdit {{
                 border: 1px solid {BORDER_COLOR};
-                border-radius: 6px;
-                padding: 10px 15px;
+                border-radius: 8px;
+                padding: 12px 15px;
                 background-color: rgba(45, 45, 45, 0.6);
                 color: {TEXT_COLOR};
             }}
             QLineEdit:focus {{
                 border: 1px solid {ACCENT_COLOR};
+                background-color: rgba(45, 45, 45, 0.8);
             }}
             QLineEdit::placeholder {{
                 color: {SECONDARY_TEXT};
@@ -1046,30 +1018,31 @@ class ChatDialog(QDialog):
 
         layout.addWidget(input_container)
 
-        # Send button
+        # Button row
         button_row = QHBoxLayout()
-
-        # Spacer to push buttons to the right
+        button_row.setSpacing(10)
         button_row.addStretch()
 
         # Send button
         self.send_btn = QPushButton("Send")
-        self.send_btn.setFont(QFont("Inter", 11, QFont.Weight.Bold))
+        self.send_btn.setFont(QFont("Inter", 12, QFont.Weight.Bold))
         self.send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.send_btn.setFixedHeight(40)
         self.send_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {ACCENT_COLOR};
                 color: white;
                 border: none;
-                border-radius: 6px;
-                padding: 10px 20px;
+                border-radius: 8px;
+                padding: 0 20px;
+                font-weight: bold;
             }}
             QPushButton:hover {{
                 background-color: #FF5722;
             }}
             QPushButton:disabled {{
                 background-color: {DISABLED_COLOR};
-                color: white;
+                color: rgba(255, 255, 255, 0.5);
             }}
         """)
         self.send_btn.clicked.connect(self.send_message)
@@ -1077,15 +1050,16 @@ class ChatDialog(QDialog):
 
         # Close button
         self.close_btn = QPushButton("Close")
-        self.close_btn.setFont(QFont("Inter", 11))
+        self.close_btn.setFont(QFont("Inter", 12))
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.close_btn.setFixedHeight(40)
         self.close_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: rgba(45, 45, 45, 0.8);
                 color: {TEXT_COLOR};
                 border: 1px solid {BORDER_COLOR};
-                border-radius: 6px;
-                padding: 10px 20px;
+                border-radius: 8px;
+                padding: 0 15px;
             }}
             QPushButton:hover {{
                 background-color: {LIGHT_GRAY};
@@ -1097,295 +1071,214 @@ class ChatDialog(QDialog):
         layout.addLayout(button_row)
 
         # Add initial welcome message
-        self.add_assistant_message("I'm here to help with your training session. What can I assist you with?")
+        self.add_assistant_message("Hello! I'm your AI learning assistant. I can help with questions about your training materials and provide guidance based on what you're learning.")
 
-        # Display a system message explaining the functionality
-        self.add_system_message(
-            "This assistant is connected to your course materials. Ask questions about what you're learning!")
+    def toggle_screen_capture(self, checked):
+        """Toggle screen capture mode"""
+        self.capture_screen = checked
 
-    def update_settings(self):
-        """Update retriever settings based on toggle states"""
-        self.use_query_enhancement = self.enhance_toggle.isChecked()
-        self.use_enhanced_retrieval = self.retrieval_toggle.isChecked()
-        self.use_multi_query = self.multi_query_toggle.isChecked()  # Add this
-
-        # Show a system message to inform about settings changes
-        self.add_system_message(
-            f"Settings updated: Query enhancement {'enabled' if self.use_query_enhancement else 'disabled'}, "
-            f"Enhanced retrieval {'enabled' if self.use_enhanced_retrieval else 'disabled'},"
-            f"Multi-query {'enabled' if self.use_multi_query else 'disabled'}"
-        )
+    def capture_current_screen(self):
+        """Capture current screen and return base64 encoded image"""
+        try:
+            if hasattr(self.parent_widget, 'screenshot_manager') and self.parent_widget.screenshot_manager.region:
+                region = self.parent_widget.screenshot_manager.region
+                screenshot = pyautogui.screenshot(region=region)
+            else:
+                screenshot = pyautogui.screenshot()
+            
+            from io import BytesIO
+            buffer = BytesIO()
+            screenshot.save(buffer, format='PNG')
+            base64_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            
+            return f"data:image/png;base64,{base64_data}"
+            
+        except Exception as e:
+            print(f"Error capturing screen: {e}")
+            return None
 
     def add_conversation_header(self, number):
-        """Add a very clear header to separate conversations"""
+        """Add a simple conversation separator"""
         self.chat_history.append(
-            f'<div style="margin: 30px 0 20px 0; text-align: center;">'
-            f'<div style="display: inline-block; background-color: {ACCENT_COLOR}; color: white; '
-            f'border-radius: 15px; padding: 5px 15px; font-weight: bold; font-size: 11px;">'
+            f'<div style="margin: 25px 0 20px 0; text-align: center;">'
+            f'<div style="display: inline-block; background-color: {ACCENT_COLOR}; '
+            f'color: white; border-radius: 12px; padding: 6px 15px; font-weight: bold; font-size: 11px;">'
             f'Conversation {number}</div>'
-            f'<div style="height: 2px; background-color: #94a3b8; margin-top: 10px;"></div>'
             f'</div>'
         )
-
-        # Auto-scroll to the bottom
         self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
 
     def add_user_message(self, message):
-        """Add a user message to the chat history with improved styling"""
-        # Add user message with enhanced styling and more distinct background
+        """Add user message with consistent styling"""
+        capture_indicator = " 📸" if self.capture_screen else ""
+        
         self.chat_history.append(
-            f'<div style="background-color: rgba(45, 45, 45, 0.8); padding: 12px 15px; border-radius: 8px; '
-            f'border-left: 4px solid {ACCENT_COLOR}; margin: 10px 0;">'
-            f'<div style="font-weight: bold; color: {TEXT_COLOR}; margin-bottom: 8px; font-size: 13px;">You:</div>'
-            f'<div style="margin: 5px 0; font-size: 13px; color: {TEXT_COLOR};">{message}</div>'
+            f'<div style="background-color: {CARD_BACKGROUND}; padding: 15px; '
+            f'border-radius: 8px; border-left: 4px solid {ACCENT_COLOR}; '
+            f'margin: 8px 0; border: 1px solid {BORDER_COLOR};">'
+            f'<div style="font-weight: bold; color: {ACCENT_COLOR}; margin-bottom: 8px; font-size: 13px;">You{capture_indicator}:</div>'
+            f'<div style="color: {TEXT_COLOR}; font-size: 14px; line-height: 1.4;">{message}</div>'
             f'</div>'
         )
-
-        # Auto-scroll to the bottom
+        
         self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
 
-        # Also add to training wheels chat history
         if hasattr(self.parent_widget, 'add_chat_to_session'):
             self.parent_widget.add_chat_to_session('user', message)
 
-    def add_thinking_indicator(self):
-        """Add a thinking indicator while waiting for response"""
-        # Create the HTML for the thinking indicator
-        self.thinking_html = (
-            f'<div id="thinking_indicator" style="background-color: rgba(30, 30, 30, 0.8); padding: 12px 15px; '
-            f'border-radius: 8px; border-left: 4px solid #9ca3af; margin: 10px 0;">'
-            f'<div style="font-weight: bold; color: {ACCENT_COLOR}; margin-bottom: 8px; font-size: 13px;">Assistant:</div>'
-            f'<div style="margin: 5px 0; color: {ACCENT_COLOR}; font-style: italic;">Assistant is thinking...</div>'
-            f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR}; text-align: center;">•••</div>'
-            f'</div>'
-        )
-
-        # Add the thinking indicator to the chat history
-        self.chat_history.append(self.thinking_html)
-
-        # Auto-scroll to the bottom
-        self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
-
-        # Force the UI to update immediately
-        QApplication.processEvents()
-
-        # Start animation
-        self.thinking_dots = 0
-        self.thinking_timer = QTimer()
-        self.thinking_timer.timeout.connect(self.animate_thinking)
-        self.thinking_timer.start(400)  # Update every 400ms
-
-    def animate_thinking(self):
-        """Animate the thinking indicator dots"""
-        dot_patterns = ["•  ", "•• ", "•••", " ••", "  •", "   "]
-        self.thinking_dots = (self.thinking_dots + 1) % len(dot_patterns)
-
-        # Update the dots in the HTML
-        dot_html = f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR};">{dot_patterns[self.thinking_dots]}</div>'
-
-        current_html = self.chat_history.toHtml()
-        updated_html = current_html.replace(
-            f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR};">•••</div>',
-            dot_html)
-        updated_html = updated_html.replace(
-            f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR};">{dot_patterns[(self.thinking_dots - 1) % len(dot_patterns)]}</div>',
-            dot_html)
-
-        # Set the updated HTML
-        self.chat_history.setHtml(updated_html)
-
-        # Keep scroll at the bottom
-        self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
-
-    def remove_thinking_indicator(self):
-        """Remove the thinking indicator"""
-        if hasattr(self, 'thinking_timer') and self.thinking_timer.isActive():
-            self.thinking_timer.stop()
-
-        # Only try to remove if thinking_html exists
-        if hasattr(self, 'thinking_html'):
-            # Remove the thinking indicator from the HTML
-            current_html = self.chat_history.toHtml()
-            updated_html = current_html.replace(self.thinking_html, '')
-
-            # Also try to remove it if the dots have been animated
-            for dots in ["•  ", "•• ", "•••", " ••", "  •", "   "]:
-                indicator_with_dots = self.thinking_html.replace(
-                    f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR};">•••</div>',
-                    f'<div id="dot-animation" style="font-size: 24px; letter-spacing: 3px; color: {ACCENT_COLOR};">{dots}</div>')
-                updated_html = updated_html.replace(indicator_with_dots, '')
-
-            # Set the updated HTML
-            self.chat_history.setHtml(updated_html)
-
     def add_assistant_message(self, message):
-        """Add an assistant message to the chat history with improved styling and list formatting"""
-        # First check if we need to remove thinking indicator
+        """Add assistant message with consistent styling"""
         if hasattr(self, 'thinking_timer') and self.thinking_timer.isActive():
             self.remove_thinking_indicator()
 
-        # Process message to improve formatting for lists
-        formatted_message = self._format_message_content(message)
-
-        # Add assistant message with enhanced styling
+        # Enhanced message formatting
+        formatted_message = self._format_message_with_llm(message)
+        
         self.chat_history.append(
-            f'<div style="background-color: rgba(16, 185, 129, 0.15); padding: 12px 15px; border-radius: 8px; '
-            f'border-left: 4px solid {SECONDARY_COLOR}; margin: 10px 0;">'
-            f'<div style="font-weight: bold; color: {ACCENT_COLOR}; margin-bottom: 8px; font-size: 13px;">Assistant:</div>'
-            f'<div style="margin: 5px 0; font-size: 13px; color: {TEXT_COLOR};">{formatted_message}</div>'
+            f'<div style="background-color: {CARD_BACKGROUND}; padding: 15px; '
+            f'border-radius: 8px; border-left: 4px solid {SECONDARY_COLOR}; '
+            f'margin: 8px 0; border: 1px solid {BORDER_COLOR};">'
+            f'<div style="font-weight: bold; color: {SECONDARY_COLOR}; margin-bottom: 8px; font-size: 13px;">AI Assistant:</div>'
+            f'<div style="color: {TEXT_COLOR}; font-size: 14px; line-height: 1.6;">{formatted_message}</div>'
             f'</div>'
         )
-
-        # Auto-scroll to the bottom
+        
         self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
 
-        # Also add to training wheels chat history
         if hasattr(self.parent_widget, 'add_chat_to_session'):
             self.parent_widget.add_chat_to_session('assistant', message)
 
-    def _format_message_content(self, message):
-        """Format message content for better readability, especially for lists"""
-        # Handle numbered lists (e.g., "1. Item")
-        message = self._format_numbered_list(message)
+    def _format_message_with_llm(self, message):
+        """Format message using LLM for better presentation"""
+        try:
+            import requests
+            import os
+            
+            system_prompt = """Format this text for HTML display in a chat interface. 
+            
+            Rules:
+            - Convert **bold** to <strong> tags with orange color
+            - Convert `code` to <code> tags with monospace font and dark background
+            - Convert ```code blocks``` to <pre> with proper styling
+            - Convert lists to proper <ul>/<ol> tags
+            - Keep line breaks as <br> tags
+            - Make URLs clickable links
+            - Use clean, readable formatting
+            - Reduce excessive spacing
+            
+            Return only the formatted HTML, no explanation."""
 
-        # Handle bullet lists (e.g., "• Item" or "- Item")
-        message = self._format_bullet_list(message)
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": message}
+                ],
+                "max_tokens": 1000,
+                "temperature": 0
+            }
 
-        # Improve spacing for paragraphs
-        message = message.replace("\n\n", "</p><p>")
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
+                },
+                json=payload,
+                timeout=10
+            )
 
-        # Enhance important terms with bold
-        message = self._highlight_important_terms(message)
-
+            if response.status_code == 200:
+                result = response.json()
+                formatted = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+                if formatted:
+                    return formatted
+            
+            # Fallback to basic formatting
+            return self._basic_format(message)
+            
+        except Exception as e:
+            print(f"Error formatting with LLM: {e}")
+            return self._basic_format(message)
+    
+    def _basic_format(self, message):
+        """Basic formatting fallback"""
+        import re
+        
+        # Basic markdown to HTML
+        message = re.sub(r'\*\*(.*?)\*\*', rf'<strong style="color: {ACCENT_COLOR};">\1</strong>', message)
+        message = re.sub(r'`([^`]+)`', rf'<code style="background: {LIGHT_GRAY}; padding: 2px 4px; border-radius: 3px; font-family: monospace;">\1</code>', message)
+        message = re.sub(r'(https?://[^\s]+)', r'<a href="\1" style="color: #00D9FF;">\1</a>', message)
+        message = message.replace('\n', '<br>')
+        
         return message
 
-    def _format_numbered_list(self, text):
-        """Format numbered lists for better display"""
-        import re
+    def add_sources_message(self, sources):
+        """Add sources as a separate message"""
+        if sources and len(sources) > 0:
+            sources_content = f'<div style="color: {SECONDARY_COLOR}; font-weight: bold; margin-bottom: 6px; font-size: 12px;">📚 Sources:</div>'
 
-        # Check if text potentially contains a numbered list
-        if re.search(r'\d+\.\s', text):
-            # Start with an empty result
-            result = []
-            in_list = False
-            lines = text.split('\n')
+            for source in sources:
+                sources_content += f'<div style="margin: 2px 0; color: {SECONDARY_TEXT}; font-size: 12px;">📄 {source}</div>'
+            
+            self.chat_history.append(
+                f'<div style="background-color: {CARD_BACKGROUND}; padding: 12px; '
+                f'border-radius: 8px; border-left: 4px solid {SECONDARY_COLOR}; '
+                f'margin: 4px 0; border: 1px solid {BORDER_COLOR};">'
+                f'{sources_content}'
+                f'</div>'
+            )
+            
+            self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
 
-            for line in lines:
-                # Check if this line is a list item
-                if re.match(r'^\s*\d+\.\s', line):
-                    if not in_list:
-                        # Start a new list
-                        in_list = True
-                        result.append('<ol style="margin-left: 20px; margin-top: 10px; margin-bottom: 10px;">')
-
-                    # Add the list item with improved styling
-                    list_content = re.sub(r'^\s*\d+\.\s', '', line)
-                    result.append(f'<li style="margin-bottom: 8px;"><strong>{list_content}</strong></li>')
-                else:
-                    if in_list:
-                        # End the current list
-                        in_list = False
-                        result.append('</ol>')
-
-                    # Add regular line
-                    result.append(line)
-
-            # Close any open list
-            if in_list:
-                result.append('</ol>')
-
-            return '\n'.join(result)
-
-        return text
-
-    def _format_bullet_list(self, text):
-        """Format bullet lists for better display"""
-        import re
-
-        # Check if text potentially contains a bullet list
-        if re.search(r'[•\-\*]\s', text):
-            # Start with an empty result
-            result = []
-            in_list = False
-            lines = text.split('\n')
-
-            for line in lines:
-                # Check if this line is a list item
-                if re.match(r'^\s*[•\-\*]\s', line):
-                    if not in_list:
-                        # Start a new list
-                        in_list = True
-                        result.append('<ul style="margin-left: 20px; margin-top: 10px; margin-bottom: 10px;">')
-
-                    # Add the list item with improved styling
-                    list_content = re.sub(r'^\s*[•\-\*]\s', '', line)
-                    result.append(f'<li style="margin-bottom: 8px;">{list_content}</li>')
-                else:
-                    if in_list:
-                        # End the current list
-                        in_list = False
-                        result.append('</ul>')
-
-                    # Add regular line
-                    result.append(line)
-
-            # Close any open list
-            if in_list:
-                result.append('</ul>')
-
-            return '\n'.join(result)
-
-        return text
-
-    def _highlight_important_terms(self, text):
-        """Highlight important terms in the text"""
-        # List of terms to highlight
-        important_terms = [
-            "Seven B's", "7 B's", "Be Available", "Be Efficient", "Be Knowledgeable",
-            "Be Proactive", "Be Respectful", "Be Responsive", "Be Trustworthy"
-        ]
-
-        # Highlight each term
-        for term in important_terms:
-            text = text.replace(term, f"<strong>{term}</strong>")
-
-        return text
-
-    def add_system_message(self, message):
-        """Add a system message to the chat history with improved styling"""
-        self.chat_history.append(
-            f'<div style="background-color: rgba(85, 85, 85, 0.5); padding: 5px 10px; border-radius: 4px; '
-            f'margin: 5px 0; border-left: 2px solid {SECONDARY_TEXT};">'
-            f'<span style="font-style: italic; color: {SECONDARY_TEXT};">System: {message}</span>'
+    def add_thinking_indicator(self):
+        """Add thinking indicator"""
+        self.thinking_html = (
+            f'<div id="thinking_indicator" style="background-color: {CARD_BACKGROUND}; padding: 15px; '
+            f'border-radius: 8px; border-left: 4px solid {SECONDARY_COLOR}; '
+            f'margin: 8px 0; border: 1px solid {BORDER_COLOR};">'
+            f'<div style="font-weight: bold; color: {SECONDARY_COLOR}; margin-bottom: 8px; font-size: 13px;">AI Assistant:</div>'
+            f'<div style="color: {SECONDARY_COLOR}; font-style: italic;">Thinking...</div>'
+            f'<div id="dot-animation" style="color: {SECONDARY_COLOR}; margin-top: 4px;">●●●</div>'
             f'</div>'
         )
 
-        # Auto-scroll to the bottom
+        self.chat_history.append(self.thinking_html)
+        self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
+        QApplication.processEvents()
+
+        self.thinking_dots = 0
+        self.thinking_timer = QTimer()
+        self.thinking_timer.timeout.connect(self.animate_thinking)
+        self.thinking_timer.start(500)
+
+    def animate_thinking(self):
+        """Simple thinking animation"""
+        dot_patterns = ["●○○", "○●○", "○○●"]
+        self.thinking_dots = (self.thinking_dots + 1) % len(dot_patterns)
+
+        current_html = self.chat_history.toHtml()
+        current_html = re.sub(
+            r'<div id="dot-animation"[^>]*>[^<]*</div>',
+            f'<div id="dot-animation" style="color: {SECONDARY_COLOR}; margin-top: 4px;">{dot_patterns[self.thinking_dots]}</div>',
+            current_html
+        )
+
+        self.chat_history.setHtml(current_html)
         self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
 
-    def add_sources_message(self, sources):
-        """Add sources information to the chat history with improved styling"""
-        if sources and len(sources) > 0:
-            sources_html = (
-                f'<div style="background-color: rgba(255, 59, 48, 0.15); padding: 8px 12px; border-radius: 6px; '
-                f'border-left: 3px solid {ACCENT_COLOR}; margin: 5px 0;">'
-                f'<div style="font-weight: bold; color: {ACCENT_COLOR};">Sources:</div>'
-                f'<ul style="margin: 5px 0 5px 20px; padding: 0;">'
-            )
+    def remove_thinking_indicator(self):
+        """Remove thinking indicator"""
+        if hasattr(self, 'thinking_timer') and self.thinking_timer.isActive():
+            self.thinking_timer.stop()
 
-            for source in sources:
-                sources_html += f'<li style="margin-bottom: 3px; color: {TEXT_COLOR};">{source}</li>'
-
-            sources_html += '</ul></div>'
-
-            self.chat_history.append(sources_html)
-
-            # Auto-scroll to the bottom
-            self.chat_history.verticalScrollBar().setValue(self.chat_history.verticalScrollBar().maximum())
+        if hasattr(self, 'thinking_html'):
+            current_html = self.chat_history.toHtml()
+            current_html = re.sub(r'<div id="thinking_indicator".*?</div>\s*</div>', '', current_html, flags=re.DOTALL)
+            self.chat_history.setHtml(current_html)
 
     def send_message(self):
-        """Send the user's message and get a response using the retriever backend"""
-        # Prevent multiple sends while processing
+        """Enhanced send_message with screen capture support"""
         if self.is_processing:
             return
 
@@ -1393,105 +1286,38 @@ class ChatDialog(QDialog):
         if not message:
             return
 
-        # Set processing state FIRST - before any retrieval happens
         self.is_processing = True
-
-        # Store the message and immediately clear the input field
         stored_message = message
         self.message_input.clear()
 
-        # Increment conversation counter and add header for clear separation
+        # Increment conversation counter
         self.conversation_count += 1
         self.add_conversation_header(self.conversation_count)
 
-        # Add user message to chat
+        # Add user message
         self.add_user_message(stored_message)
 
-        # Update UI to show processing state BEFORE retrieval
+        # Update UI
         self.message_input.setEnabled(False)
         self.send_btn.setEnabled(False)
         self.send_btn.setText("Processing...")
         self.progress_label.setVisible(True)
-
-        # Add thinking indicator BEFORE retrieval
         self.add_thinking_indicator()
 
-        # Force UI update to ensure changes are visible immediately
-        QApplication.processEvents()
-
-        # Use a timer to update the progress indicators
-        self.dots = 0
-        self.progress_timer = QTimer()
-        self.progress_timer.timeout.connect(self.update_progress_indicator)
-        self.progress_timer.start(300)  # Update every 300ms
-
         try:
-            # Get course_id from parent window
+            # Capture screen if enabled
+            screenshot_data = None
+            if self.capture_screen:
+                screenshot_data = self.capture_current_screen()
+
+            # Get course_id
             course_id = self.parent_widget.course_id if hasattr(self.parent_widget, 'course_id') else "001"
 
-            # Import only the working functions
-            from retriever import query_course_knowledge, generate_diverse_queries
-
-            # Use multi-query if enabled
-            if self.use_multi_query:
-                # Generate diverse queries
-                try:
-                    queries = generate_diverse_queries(stored_message, num_queries=5)
-                    self.add_system_message(f"Generated {len(queries)} diverse queries to find the best answer")
-
-                    # Collect all answers
-                    all_answers = []
-                    all_sources = set()
-
-                    for query in queries:
-                        result = query_course_knowledge(
-                            course_id=course_id,
-                            question=query,
-                            use_query_enhancement=False,  # Don't enhance since we already have diverse queries
-                            use_enhanced_retrieval=self.use_enhanced_retrieval,
-                            k=3
-                        )
-
-                        if result.get("answer") and "I don't have enough information" not in result.get("answer", ""):
-                            all_answers.append(result["answer"])
-                            all_sources.update(result.get("source_documents", []))
-
-                    # Combine answers or use the best one
-                    if all_answers:
-                        # For now, just use the first good answer
-                        # You could enhance this to combine answers intelligently
-                        answer = all_answers[0]
-                        sources = list(all_sources)
-                    else:
-                        answer = "I don't have enough information in the course materials to answer that question."
-                        sources = []
-
-                except Exception as e:
-                    # If diverse query generation fails, fall back to single query
-                    logger.error(f"Error generating diverse queries: {e}")
-                    self.use_multi_query = False
-
-            # Single query mode (fallback or if multi-query is disabled)
-            if not self.use_multi_query:
-                result = query_course_knowledge(
-                    course_id=course_id,
-                    question=stored_message,
-                    use_query_enhancement=self.use_query_enhancement,
-                    use_enhanced_retrieval=self.use_enhanced_retrieval,
-                    k=10,
-                    use_parallel_processing=True
-                )
-
-                answer = result.get("answer", "I'm unable to find an answer to that question.")
-                sources = result.get("source_documents", [])
-
-                # If query was enhanced, show the enhancement
-                query_info = result.get("query_info", {})
-                if query_info and "original_query" in query_info and "enhanced_query" in query_info:
-                    self.add_system_message(
-                        f"Query enhanced from: '{query_info['original_query']}' "
-                        f"to: '{query_info['enhanced_query']}'"
-                    )
+            # Enhanced retrieval with screen capture support
+            if screenshot_data:
+                answer, sources = self._get_answer_with_image(stored_message, screenshot_data, course_id)
+            else:
+                answer, sources = self._get_standard_answer(stored_message, course_id)
 
             # Add assistant response
             self.add_assistant_message(answer)
@@ -1501,10 +1327,7 @@ class ChatDialog(QDialog):
                 self.add_sources_message(sources)
 
         except Exception as e:
-            # Handle any errors gracefully
-            self.add_system_message(f"Error: {str(e)}")
-            self.add_assistant_message(
-                "I encountered an error while processing your question. Please try again later.")
+            self.add_assistant_message(f"I encountered an error: {str(e)}. Please try again.")
 
         finally:
             # Reset processing state
@@ -1514,38 +1337,263 @@ class ChatDialog(QDialog):
             self.send_btn.setText("Send")
             self.progress_label.setVisible(False)
 
-            # Stop the progress timer
-            if hasattr(self, 'progress_timer') and self.progress_timer.isActive():
-                self.progress_timer.stop()
+    def _get_answer_with_image(self, question, screenshot_data, course_id):
+        """Get answer using LLM with image analysis"""
+        try:
+            from retriever import get_retriever_answer
+            
+            retrieval_result = get_retriever_answer(
+                question=question,
+                course_id=course_id,
+                use_query_enhancement=True,
+                use_enhanced_retrieval=True,
+                use_multi_query=True,
+                num_queries=3
+            )
+            
+            context = retrieval_result.get("answer", "")
+            sources = retrieval_result.get("source_documents", [])
+            
+            # Get the goal from parent widget
+            goal = getattr(self.parent_widget, 'goal', 'No specific goal set')
+            
+            system_prompt = f"""You are an expert learning assistant with access to course materials and visual analysis capabilities.
 
-    def update_progress_indicator(self):
-        """Update the progress indicator with animated dots"""
-        self.dots = (self.dots + 1) % 4
-        dots_text = "." * self.dots
-        self.progress_label.setText(f"Processing your question{dots_text.ljust(3)}")
+The user's ultimate learning goal is: {goal}
+
+Analyze the screenshot and provide helpful, specific guidance based on what you see, the course context, and how it relates to their goal.
+
+Format your response in clear, helpful markdown with:
+- Specific actionable steps
+- Code examples if relevant (use ```language blocks)
+- **Bold text** for important points
+- Numbered lists for step-by-step instructions
+
+If no course materials are available for the question, use your general knowledge to provide helpful guidance."""
+
+            user_message = f"""
+Question: {question}
+
+Course Context: {context if context else "No specific course materials found for this question."}
+
+Please analyze the screenshot and provide helpful guidance based on what you see and the question asked.
+"""
+
+            import requests
+            import os
+            
+            payload = {
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": user_message},
+                            {"type": "image_url", "image_url": {"url": screenshot_data}}
+                        ]
+                    }
+                ],
+                "max_tokens": 1500
+            }
+
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
+                },
+                json=payload,
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                answer = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+                return answer, sources
+            else:
+                return self._get_standard_answer(question, course_id)
+
+        except Exception as e:
+            print(f"Error in image analysis: {e}")
+            return self._get_standard_answer(question, course_id)
+
+    def _get_standard_answer(self, question, course_id):
+        """Get standard answer using enhanced retrieval"""
+        try:
+            from retriever import get_retriever_answer
+            
+            result = get_retriever_answer(
+                question=question,
+                course_id=course_id,
+                use_query_enhancement=True,
+                use_enhanced_retrieval=True,
+                use_multi_query=True,
+                num_queries=5
+            )
+
+            answer = result.get("answer", "")
+            sources = result.get("source_documents", [])
+            
+            # If no good answer from materials, use general knowledge
+            if not answer or "I don't have enough information" in answer:
+                enhanced_answer = self._get_general_knowledge_answer(question)
+                if enhanced_answer:
+                    answer = enhanced_answer
+                    sources = ["General Knowledge"]
+
+            return answer, sources
+
+        except Exception as e:
+            print(f"Error in standard retrieval: {e}")
+            return "I encountered an error while searching for information. Please try rephrasing your question.", []
+
+    def _get_general_knowledge_answer(self, question):
+        """Get answer using general knowledge when no course materials are found"""
+        try:
+            import requests
+            import os
+
+            # Get the goal from parent widget
+            goal = getattr(self.parent_widget, 'goal', 'No specific goal set')
+
+            system_prompt = f"""You are a helpful learning assistant. The user has asked a question but no specific course materials were found.
+
+The user's ultimate learning goal is: {goal}
+
+Provide a helpful, educational answer using your general knowledge that relates to their goal. Format your response in clear markdown with:
+- **Bold text** for key concepts
+- Numbered lists for step-by-step processes
+- Code blocks with ```language when showing code
+- Bullet points for features or options
+
+Be comprehensive but concise, and focus on practical, actionable guidance that helps them progress toward their goal."""
+
+            payload = {
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Question: {question}"}
+                ],
+                "max_tokens": 1000
+            }
+
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
+                },
+                json=payload,
+                timeout=20
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            else:
+                return None
+
+        except Exception as e:
+            print(f"Error getting general knowledge answer: {e}")
+            return None
 
     def closeEvent(self, event):
-        """Override close event to ensure proper handling"""
-        # Stop any active timers
-        if hasattr(self, 'progress_timer') and self.progress_timer.isActive():
-            self.progress_timer.stop()
-
+        """Override close event"""
         if hasattr(self, 'thinking_timer') and self.thinking_timer.isActive():
             self.thinking_timer.stop()
-
         self.close_chat()
         event.accept()
 
     def close_chat(self):
-        """Custom close handler to ensure we properly handle state"""
-        # Stop any active timers
-        if hasattr(self, 'progress_timer') and self.progress_timer.isActive():
-            self.progress_timer.stop()
-
+        """Enhanced close handler"""
         if hasattr(self, 'thinking_timer') and self.thinking_timer.isActive():
             self.thinking_timer.stop()
+        self.hide()
+        
 
-        self.hide()  # Hide instead of closing to maintain instance
+class AnimatedLineEdit(QLineEdit):
+    """QLineEdit with animated border effect"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.animation = QPropertyAnimation(self, b"")
+        self.border_intensity = 0.3
+        self.setup_animation()
+        
+    def setup_animation(self):
+        """Setup the border animation"""
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_border)
+        self.timer.start(50)  # Update every 50ms
+        self.animation_progress = 0
+        
+    def update_border(self):
+        """Update border animation"""
+        self.animation_progress += 0.05
+        if self.animation_progress > 1:
+            self.animation_progress = 0
+            
+        # Create animated border intensity
+        intensity = 0.3 + 0.4 * abs(0.5 - self.animation_progress)
+        
+        if self.hasFocus():
+            border_color = f"rgba(255, 59, 48, {intensity})"
+        else:
+            border_color = f"rgba(255, 255, 255, {intensity * 0.3})"
+            
+        self.setStyleSheet(f"""
+            QLineEdit {{
+                background: rgba(45, 45, 45, 0.6);
+                border: 2px solid {border_color};
+                border-radius: 12px;
+                padding: 15px 20px;
+                color: {TEXT_COLOR};
+                font-size: 14px;
+            }}
+            QLineEdit::placeholder {{
+                color: {SECONDARY_TEXT};
+            }}
+        """)
+
+
+class AnimatedTextEdit(QTextEdit):
+    """QTextEdit with animated border effect"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_animation()
+        
+    def setup_animation(self):
+        """Setup the border animation"""
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_border)
+        self.timer.start(50)
+        self.animation_progress = 0
+        
+    def update_border(self):
+        """Update border animation"""
+        self.animation_progress += 0.05
+        if self.animation_progress > 1:
+            self.animation_progress = 0
+            
+        intensity = 0.3 + 0.4 * abs(0.5 - self.animation_progress)
+        
+        if self.hasFocus():
+            border_color = f"rgba(255, 59, 48, {intensity})"
+        else:
+            border_color = f"rgba(255, 255, 255, {intensity * 0.3})"
+            
+        self.setStyleSheet(f"""
+            QTextEdit {{
+                background: rgba(45, 45, 45, 0.6);
+                border: 2px solid {border_color};
+                border-radius: 12px;
+                padding: 15px 20px;
+                color: {TEXT_COLOR};
+                font-size: 14px;
+            }}
+        """)
 
 
 class LoginScreen(QWidget):
@@ -1587,74 +1635,55 @@ class LoginScreen(QWidget):
 
         # App logo with accent color - FIXED FORMATTING
         logo_label = QLabel("LearnChain")
-        logo_label.setFont(QFont("Inter", 32, QFont.Weight.Bold))
-        logo_label.setStyleSheet(f"color: {ACCENT_COLOR}; margin: 0px; padding: 0px;")
+        logo_label.setFont(QFont("Inter", 36, QFont.Weight.Bold))  # Bigger
+        logo_label.setStyleSheet(f"""
+            color: {ACCENT_COLOR}; 
+            margin: 0px; 
+            padding: 0px;
+            background: transparent;
+        """)
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(logo_label)
 
         # Title with white text - FIXED FORMATTING
         title = QLabel("Training Wheels")
-        title.setFont(QFont("Inter", 18, QFont.Weight.Normal))
-        title.setStyleSheet(f"color: {TEXT_COLOR}; margin: 0px; padding: 0px;")
+        title.setFont(QFont("Inter", 20, QFont.Weight.Normal))  # Bigger
+        title.setStyleSheet(f"""
+            color: {TEXT_COLOR}; 
+            margin: 0px; 
+            padding: 0px;
+            background: transparent;
+        """)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(title)
 
         # Instruction text - FIXED FORMATTING
         instruction = QLabel("Please enter your credentials to continue")
-        instruction.setFont(QFont("Inter", 14))
-        instruction.setStyleSheet(f"color: {SECONDARY_TEXT}; margin: 0px; padding: 0px;")
+        instruction.setFont(QFont("Inter", 15))  # Bigger
+        instruction.setStyleSheet(f"""
+            color: {SECONDARY_TEXT}; 
+            margin: 0px; 
+            padding: 0px;
+            background: transparent;
+        """)
         instruction.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(instruction)
 
-        # User input field with glass styling
-        self.user_input = QLineEdit()
+        # User input field with animated glass styling
+        self.user_input = AnimatedLineEdit()
         self.user_input.setPlaceholderText("Enter your User ID")
-        self.user_input.setFixedHeight(55)
-        self.user_input.setFont(QFont("Inter", 14))
-        self.user_input.setStyleSheet(f"""
-            QLineEdit {{
-                background: rgba(45, 45, 45, 0.6);
-                border: 2px solid rgba(255, 255, 255, 0.1);
-                border-radius: 12px;
-                padding: 15px 20px;
-                color: {TEXT_COLOR};
-                font-size: 14px;
-            }}
-            QLineEdit:focus {{
-                border: 2px solid {ACCENT_COLOR};
-                background: rgba(45, 45, 45, 0.8);
-            }}
-            QLineEdit::placeholder {{
-                color: {SECONDARY_TEXT};
-            }}
-        """)
+        self.user_input.setFixedHeight(65)  # Slightly taller
+        self.user_input.setFont(QFont("Inter", 15))  # Bigger font
         card_layout.addWidget(self.user_input)
 
-        # Course ID input field
-        self.course_input = QLineEdit()
+        # Course ID input field with animated styling
+        self.course_input = AnimatedLineEdit()
         self.course_input.setPlaceholderText("Enter your Course ID")
-        self.course_input.setFixedHeight(55)
-        self.course_input.setFont(QFont("Inter", 14))
-        self.course_input.setStyleSheet(f"""
-            QLineEdit {{
-                background: rgba(45, 45, 45, 0.6);
-                border: 2px solid rgba(255, 255, 255, 0.1);
-                border-radius: 12px;
-                padding: 15px 20px;
-                color: {TEXT_COLOR};
-                font-size: 14px;
-            }}
-            QLineEdit:focus {{
-                border: 2px solid {ACCENT_COLOR};
-                background: rgba(45, 45, 45, 0.8);
-            }}
-            QLineEdit::placeholder {{
-                color: {SECONDARY_TEXT};
-            }}
-        """)
+        self.course_input.setFixedHeight(65)  # Slightly taller
+        self.course_input.setFont(QFont("Inter", 15))  # Bigger font
         card_layout.addWidget(self.course_input)
 
-        # Login button with accent color and glass effect - REMOVED CSS TRANSFORM
+        # Login button with accent color and glass effect
         login_btn = QPushButton("Login")
         login_btn.setFont(QFont("Inter", 16, QFont.Weight.Bold))
         login_btn.setFixedHeight(55)
@@ -1705,7 +1734,7 @@ class LoginScreen(QWidget):
             self.stacked_widget.main_screen.set_user(user_id)
             self.stacked_widget.setCurrentIndex(1)
 
-
+            
 class GoalDisplay(QWidget):
     """Goal display with modern dark theme"""
 
@@ -1905,7 +1934,7 @@ class MainScreen(QWidget):
         self.explanation_mode = False
         self.is_online = False  # Initialize as offline
 
-        # Create chat dialog
+        # Create enhanced chat dialog
         self.chat_dialog = ChatDialog(self)
 
         self.setMinimumSize(width, height)
@@ -2009,48 +2038,45 @@ class MainScreen(QWidget):
         card_layout = QVBoxLayout(goal_card)
         card_layout.setSpacing(25)
 
-        # Hero text with accent highlight - FIXED FORMATTING
+        # Hero text with accent highlight - FIXED FORMATTING AND BACKGROUND
         hero_container = QVBoxLayout()
-        hero_container.setSpacing(5)  # Reduce spacing between lines
-        
+        hero_container.setSpacing(8)  # Proper spacing between lines
+        hero_container.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         hero_line1 = QLabel("What do you want")
-        hero_line1.setFont(QFont("Inter", 28, QFont.Weight.Bold))
-        hero_line1.setStyleSheet(f"color: {TEXT_COLOR}; margin: 0px; padding: 0px;")
+        hero_line1.setFont(QFont("Inter", 32, QFont.Weight.Bold))  # Bigger font
+        hero_line1.setStyleSheet(f"""
+            color: {TEXT_COLOR}; 
+            margin: 0px; 
+            padding: 0px;
+            background: transparent;  /* Remove any background */
+        """)
         hero_line1.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         hero_line2 = QLabel()
         hero_line2.setText(f'to <span style="color: {ACCENT_COLOR};">master</span> today?')
-        hero_line2.setFont(QFont("Inter", 28, QFont.Weight.Bold))
-        hero_line2.setStyleSheet(f"color: {TEXT_COLOR}; margin: 0px; padding: 0px;")
+        hero_line2.setFont(QFont("Inter", 32, QFont.Weight.Bold))  # Bigger font
+        hero_line2.setStyleSheet(f"""
+            color: {TEXT_COLOR}; 
+            margin: 0px; 
+            padding: 0px;
+            background: transparent;  /* Remove any background */
+        """)
         hero_line2.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         hero_container.addWidget(hero_line1)
         hero_container.addWidget(hero_line2)
         card_layout.addLayout(hero_container)
 
-        # Goal input - make it scrollable with QTextEdit but with constrained height
-        self.goal_input = QTextEdit()
+        # Goal input - make it scrollable with animated border
+        self.goal_input = AnimatedTextEdit()
         self.goal_input.setPlaceholderText("e.g., Deploy a Django site on Lightsail")
-        self.goal_input.setMaximumHeight(120)  # FIXED: Constrain the height
-        self.goal_input.setMinimumHeight(80)   # Minimum height for usability
-        self.goal_input.setFont(QFont("Inter", 14))
-        self.goal_input.setStyleSheet(f"""
-            QTextEdit {{
-                background: rgba(45, 45, 45, 0.6);
-                border: 2px solid rgba(255, 255, 255, 0.1);
-                border-radius: 12px;
-                padding: 15px 20px;
-                color: {TEXT_COLOR};
-                font-size: 14px;
-            }}
-            QTextEdit:focus {{
-                border: 2px solid {ACCENT_COLOR};
-                background: rgba(45, 45, 45, 0.8);
-            }}
-        """)
+        self.goal_input.setMaximumHeight(120)
+        self.goal_input.setMinimumHeight(90)   # Slightly taller minimum
+        self.goal_input.setFont(QFont("Inter", 15))  # Bigger font
         card_layout.addWidget(self.goal_input)
 
-        # Settings toggles in glass container - FIXED VISIBILITY
+        # Settings toggles in glass container - FIXED VISIBILITY AND ALIGNMENT
         toggles_frame = QFrame()
         toggles_frame.setStyleSheet(f"""
             QFrame {{
@@ -2060,45 +2086,48 @@ class MainScreen(QWidget):
                 padding: 20px;
             }}
         """)
-        toggles_frame.setFixedHeight(120)  # FIXED: Increased height for better spacing
+        toggles_frame.setFixedHeight(140)  # Increased height for better spacing
 
         toggles_layout = QVBoxLayout(toggles_frame)  
-        toggles_layout.setContentsMargins(20, 15, 20, 15)
-        toggles_layout.setSpacing(15)
+        toggles_layout.setContentsMargins(20, 20, 20, 20)
+        toggles_layout.setSpacing(20)
 
-        # First row of toggles
+        # First row of toggles with improved alignment
         first_row = QHBoxLayout()
-        first_row.setSpacing(40)
+        first_row.setSpacing(60)  # More space between toggles
 
-        # Include Explanations toggle - FIXED: Made label clearly visible
-        explanation_container = QVBoxLayout()  # FIXED: Changed to vertical for better visibility
-        explanation_container.setSpacing(8)
-        
+        # Include Explanations toggle - FIXED: Properly centered
+        explanation_container = QVBoxLayout()
+        explanation_container.setSpacing(12)
+        explanation_container.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         explanation_label = QLabel("Include Explanations")
-        explanation_label.setFont(QFont("Inter", 13, QFont.Weight.Medium))
+        explanation_label.setFont(QFont("Inter", 14, QFont.Weight.Medium))  # Bigger font
         explanation_label.setStyleSheet(f"color: {TEXT_COLOR}; padding: 0px; margin: 0px;")
+        explanation_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # Center the text
         explanation_container.addWidget(explanation_label)
 
         self.explanation_toggle = ToggleSwitch()
         self.explanation_toggle.toggled.connect(self.toggle_explanation_mode)
-        explanation_container.addWidget(self.explanation_toggle)
-        first_row.addLayout(explanation_container)
+        explanation_container.addWidget(self.explanation_toggle, 0, Qt.AlignmentFlag.AlignCenter)
 
-        # Web Search toggle (placeholder, disabled) - FIXED: Made label clearly visible
-        search_container = QVBoxLayout()  # FIXED: Changed to vertical for better visibility
-        search_container.setSpacing(8)
-        
+        # Web Search toggle - FIXED: Properly centered  
+        search_container = QVBoxLayout()
+        search_container.setSpacing(12)
+        search_container.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         search_label = QLabel("Web Search")
-        search_label.setFont(QFont("Inter", 13, QFont.Weight.Medium))
+        search_label.setFont(QFont("Inter", 14, QFont.Weight.Medium))  # Bigger font
         search_label.setStyleSheet(f"color: {SECONDARY_TEXT}; padding: 0px; margin: 0px;")
+        search_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # Center the text
         search_container.addWidget(search_label)
 
-        # Disabled toggle for web search
         search_toggle = ToggleSwitch()
         search_toggle.setEnabled(False)
-        search_container.addWidget(search_toggle)
-        first_row.addLayout(search_container)
+        search_container.addWidget(search_toggle, 0, Qt.AlignmentFlag.AlignCenter)
 
+        first_row.addLayout(explanation_container)
+        first_row.addLayout(search_container)
         first_row.addStretch()
         toggles_layout.addLayout(first_row)
         card_layout.addWidget(toggles_frame)
@@ -2130,7 +2159,7 @@ class MainScreen(QWidget):
 
         card_layout.addWidget(fullscreen_notification)
 
-        # Start Session button - REMOVED CSS TRANSFORM
+        # Start Session button
         start_btn = QPushButton("Start Session")
         start_btn.setFont(QFont("Inter", 16, QFont.Weight.Bold))
         start_btn.setFixedHeight(55)
@@ -2370,6 +2399,7 @@ class MainScreen(QWidget):
 
         self.layout.addWidget(self.button_panel)
 
+    # Keep all other existing methods unchanged...
     def update_online_status(self):
         """Update the online/offline status display"""
         if self.is_online:
@@ -2398,14 +2428,10 @@ class MainScreen(QWidget):
         if hasattr(self, 'explanation_toggle'):
             self.explanation_toggle.setChecked(enabled)
 
-        # REMOVED: No more system notifications for settings changes
-
         # Update training wheels if active
         if hasattr(self, 'is_training_wheels_active') and self.is_training_wheels_active:
             import training_wheels as tw
             tw.toggle_explanation_mode(enabled)
-
-            # REMOVED: No step notifications for explanation mode changes
 
     def start_session(self):
         """Start a new training session"""
@@ -2703,7 +2729,7 @@ class MainScreen(QWidget):
         """)
 
     def open_chat(self):
-        """Open the chat dialog for asking questions with the current course ID"""
+        """Open the enhanced chat dialog for asking questions with the current course ID"""
         if self.is_session_paused:
             # Ensure the dialog has access to the course_id
             if not hasattr(self.chat_dialog, 'course_id') and hasattr(self, 'course_id'):
@@ -2752,7 +2778,7 @@ class LearnChainTutor(QStackedWidget):
         # Set window title
         self.setWindowTitle("LearnChain Tutor")
 
-        # Apply global dark theme styles - REMOVED CSS TRANSFORM
+        # Apply global dark theme styles
         self.setStyleSheet(f"""
             QWidget {{
                 font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -2883,7 +2909,7 @@ if __name__ == "__main__":
 
     QApplication.setStyle("Fusion")
 
-    # Apply dark theme to the entire application - REMOVED CSS TRANSFORM
+    # Apply dark theme to the entire application
     app.setStyleSheet(f"""
         QWidget {{
             background-color: {PRIMARY_COLOR};

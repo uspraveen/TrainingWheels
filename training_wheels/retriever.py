@@ -15,6 +15,8 @@ import threading
 from queue import Queue, Empty
 import dotenv
 import atexit
+import html
+
 
 dotenv.load_dotenv()
 
